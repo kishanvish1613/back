@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    @page {
+      size: A4;
+      margin: 48px;
+
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 9pt;
+        font-family: Helvetica;
+      }
+    }
+
+    * {
+      font-weight: normal;
+    }
+
+    body {
+      width: 100%;
+      font-family: Helvetica;
+      margin: 0;
+      font-size: 8.25pt;
+      padding-top: 0;
+      /* background-color: rgb(255, 179, 86); */
+    }
+
+    /* ===== HEADER STRIP ===== */
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -72.2%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .watermark img {
+      width: 300px;
+      /* match original */
+      height: auto;
+      opacity: 1;
+      /* DO NOT reduce opacity here */
+    }
+
+
+    /* ===== TOP INFO SECTION ===== */
+    .info-section {
+      overflow: hidden;
+      width: 100%;
+      padding: 5px 0 0 2px;
+      /* background: rgb(153, 255, 252); */
+    }
+
+    .info-left {
+      float: left;
+      width: 45%;
+      box-sizing: border-box;
+      /* background: #70ff9e; */
+    }
+
+    .info-right {
+      float: right;
+      vertical-align: top;
+      box-sizing: border-box;
+      width: 50%;
+      padding-left: 33.7px;
+      /* background: #ffb2b2; */
+    }
+
+    .customer-name {
+      margin-bottom: 32px;
+      margin-top: 1px;
+    }
+
+    .customer-address p {
+      margin: 0 0 6px 0;
+      line-height: 13.7px;
+    }
+
+    .info-left p {
+      margin: 0 0 10px 0;
+    }
+
+    .info-right table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .info-right td {
+      vertical-align: top;
+      padding-bottom: 9.9px;
+    }
+
+    .info-right td.label {
+      width: 105.5px;
+      text-align: left;
+      white-space: nowrap;
+      /* vertical-align: text-top; */
+      /* background: #ff9b5d; */
+    }
+
+    .info-right td.colon {
+      width: 9px;
+      text-align: left;
+      /* background: #ff69f0; */
+    }
+
+    .info-right td.value {
+      /* background: #fffaa5; */
+      padding-right: 0px;
+      text-align: left;
+    }
+
+    /* ===== DIVIDER ===== */
+    .divider {
+      /* margin: -2.5px 49px 0px 49px; */
+      border-top: 1.5px solid #000;
+    }
+
+    /* ===== TRANSACTION TABLE ===== */
+    /* .txn-wrapper {
+      margin: 0 48px;
+    } */
+
+    table.txn {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-bottom: 20px;
+
+      -fs-table-paginate: paginate;
+    }
+
+    table.txn thead {
+      display: table-header-group;
+    }
+
+    table.txn tbody {
+      display: table-row-group;
+    }
+
+    table.txn thead th {
+      border-top: 2px solid #000;
+      border-bottom: 1px solid #000;
+      text-align: left;
+      font-size: 9.75pt;
+    }
+
+    table.txn tbody td {
+      padding: 5.5px 2px;
+      vertical-align: top;
+    }
+
+    .right {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .nowrap {
+      white-space: nowrap;
+    }
+
+    table.txn tbody tr {
+      page-break-inside: avoid;
+    }
+
+    /* ===== STATEMENT SUMMARY ===== */
+    .summary-title {
+      margin-bottom: 24px;
+      padding-left: 2px;
+    }
+
+    .summary-table {
+      width: 300px;
+      padding-bottom: 55px;
+    }
+
+    .summary-table table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .summary-table td {
+      padding: 5.5px 0;
+      padding-left: 2px;
+      vertical-align: top;
+    }
+
+    .summary-table .label {
+      width: 173px;
+      /* background: #ffaaaa; */
+    }
+
+    .summary-table .colon {
+      width: 4px;
+      /* background: #aaf4ff; */
+      text-align: left;
+    }
+
+    .summary-table .value {
+      text-align: right;
+      /* background: #aaffb5; */
+      width: 160px;
+      white-space: nowrap;
+    }
+
+    /* ===== FOOTER ===== */
+    .statement-footer {
+      text-align: center;
+    }
+
+    .statement-footer p {
+      margin: 0;
+    }
+
+    .statement-footer .disclaimer {
+      margin-bottom: 13px;
+    }
+
+    .statement-footer .end {
+      margin-bottom: 13px;
+    }
+
+    .no-page-break {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ===== WATERMARK ===== -->
+  <div class="watermark">
+    <img src="kotak_background.png" />
+  </div>
+
+  <!-- ===== HEADER ===== -->
+  <div class="content">
+    <!-- ===== ACCOUNT INFO ===== -->
+    <div class="info-section">
+
+      <div class="info-left">
+        <div class="customer-name">
+          {{NAME}}
+        </div>
+
+        <div class="customer-address">
+          {{CUSTOMER_ADDRESS}}
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="info-right">
+        <table>
+          <tr>
+            <td class="label">Period</td>
+            <td class="colon">:</td>
+            <td class="value">{{STATEMENT_START_DATE}} to {{STATEMENT_END_DATE}}</td>
+          </tr>
+          <tr>
+            <td class="label">Cust Reln No</td>
+            <td class="colon">:</td>
+            <td class="value">{{CUSTOMER_REL_NO}}</td>
+          </tr>
+          <tr>
+            <td class="label">Account No</td>
+            <td class="colon">:</td>
+            <td class="value">{{ACCOUNT_NO}}</td>
+          </tr>
+          <tr>
+            <td class="label">Currency</td>
+            <td class="colon">:</td>
+            <td class="value">INR</td>
+          </tr>
+          <tr>
+            <td class="label">Branch</td>
+            <td class="colon">:</td>
+            <td class="value">{{BRANCH}}</td>
+          </tr>
+          <tr>
+            <td class="label">Nominee Registered</td>
+            <td class="colon">:</td>
+            <td class="value">Y</td>
+          </tr>
+          <tr>
+            <td class="label">Branch Address</td>
+            <td class="colon">:</td>
+            <td class="value">
+              {{BRANCH_ADDRESS}}
+            </td>
+          </tr>
+          <tr>
+            <td class="label">Branch Phone No.</td>
+            <td class="colon">:</td>
+            <td class="value">{{BRANCH_PHONE_NO}}</td>
+          </tr>
+          <tr>
+            <td class="label">MICR Code</td>
+            <td class="colon">:</td>
+            <td class="value">{{MICR}}</td>
+          </tr>
+          <tr>
+            <td class="label">IFSC Code</td>
+            <td class="colon">:</td>
+            <td class="value">{{IFSC}}</td>
+          </tr>
+        </table>
+      </div>
+
+    </div>
+
+    <table class="txn">
+      <colgroup>
+        <col style="width: 69.7px" />
+        <col style="width: 244px" />
+        <col style="width: 175px" />
+        <col style="width: 0px" />
+        <col style="width: 0px" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="nowrap">Date</th>
+          <th>Narration</th>
+          <th class="nowrap">Chq/Ref No</th>
+          <th class="right nowrap">Withdrawal(Dr)/<br />Deposit(Cr)</th>
+          <th class="right nowrap">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{TRANSACTIONS_TABLE}}
+      </tbody>
+    </table>
+
+    <!-- ===== STATEMENT SUMMARY ===== -->
+    <div class="summary-section">
+
+      <div class="summary-title">Statement Summary</div>
+
+      <div class="summary-table">
+        <table>
+          <tr>
+            <td class="label">Opening Balance</td>
+            <td class="colon">:</td>
+            <td class="value">{{OPENING_BALANCE}}</td>
+          </tr>
+          <tr>
+            <td class="label">Total Withdrawal Amount</td>
+            <td class="colon">:</td>
+            <td class="value">{{TOTAL_DEBIT}}</td>
+          </tr>
+          <tr>
+            <td class="label">Total Deposit Amount</td>
+            <td class="colon">:</td>
+            <td class="value">{{TOTAL_CREDIT}}</td>
+          </tr>
+          <tr>
+            <td class="label">Closing Balance</td>
+            <td class="colon">:</td>
+            <td class="value">{{CLOSING_BALANCE}}</td>
+          </tr>
+          <tr>
+            <td class="label">Withdrawal Count</td>
+            <td class="colon">:</td>
+            <td class="value">{{DEBIT_COUNT}}</td>
+          </tr>
+          <tr>
+            <td class="label">Deposit Count</td>
+            <td class="colon">:</td>
+            <td class="value">{{CREDIT_COUNT}}</td>
+          </tr>
+        </table>
+      </div>
+
+
+    </div>
+
+    <!-- ===== FOOTER NOTES ===== -->
+    <div class="statement-footer no-page-break">
+
+      <p class="disclaimer">
+        Any discrepancy in the statement should be brought to the notice of Kotak Mahindra Bank Ltd.
+        within one month from date of statement.
+      </p>
+
+      <p class="end">End of Statement.</p>
+
+      <p class="system-note">
+        This is system generated report and does not require signature &amp; stamp.
+      </p>
+
+    </div>
+  </div>
+
+</body>
+
+</html>

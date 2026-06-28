@@ -1,0 +1,116 @@
+BT
+/F5 8.0 Tf
+0 g
+0 Tr
+1 0 0 1 292.034 816.583 Tm [(Page) -250.0 (No) -250.0 (.:) -250.0 ({{PAGE_NO}}) -22746.375 (Statement) -250.0 (of) -250.0 (account) ] TJ
+ET
+q
+1 g
+1 G
+28.346 807.874 147.401 -34.4 re b
+Q
+BT
+ET
+q
+145.0 0 0 32.0 28.346 774.674 cm
+/Im1 Do
+Q
+BT
+ET
+q
+0 g
+28.346 759.685 283.464 1.133 re f
+Q
+BT
+ET
+q
+0 g
+27.213 650.836 1.133 109.982 re f
+Q
+BT
+ET
+q
+0 g
+311.81 650.836 1.133 109.982 re f
+Q
+BT
+ET
+q
+0 g
+28.346 650.836 283.464 1.133 re f
+Q
+BT
+1 0 0 1 34.015 744.918 Tm [{{NAME}} ] TJ
+1 0 0 1 34.015 733.284 Tm [{{ADDR1}} ] TJ
+1 0 0 1 34.015 721.65 Tm [{{ADDR2}} ] TJ
+1 0 0 1 34.015 710.016 Tm [{{ADDR3}} ] TJ
+1 0 0 1 34.015 698.382 Tm [{{ADDR4}} ] TJ
+1 0 0 1 34.015 686.748 Tm [{{ADDR5}}] TJ
+1 0 0 1 34.015 669.445 Tm [(JOINT) -250.0 (HOLDERS) -250.0 (:) ] TJ
+1 0 0 1 34.015 642.87 Tm [(Nomination) -250.0 (:) -500.0 (Registered) ] TJ
+1 0 0 1 34.015 620.193 Tm [(Statement) -250.0 (From) -500.0 (:) -500.0 ({{START_DATE}}) -3250.0 (To) -500.0 (:) -500.0 ({{END_DATE}}) ] TJ
+ET
+q
+1 g
+1 G
+340.157 789.449 283.463 -139.269 re b
+Q
+BT
+ET
+q
+1 g
+340.157 789.449 283.463 1.417 re f
+Q
+BT
+ET
+q
+1 g
+338.74 648.763 1.417 142.103 re f
+Q
+BT
+ET
+q
+1 g
+623.62 648.763 1.417 142.103 re f
+Q
+BT
+ET
+q
+1 g
+340.157 648.763 283.463 1.417 re f
+Q
+BT
+1 0 0 1 340.157 783.235 Tm [(Account) -250.0 (Branch) -560.5 (:) -430.625 {{BRANCH}} ] TJ
+1 0 0 1 340.157 774.535 Tm [(Address) -3809.5 (:) -430.625 {{BADDR1}} ] TJ
+1 0 0 1 402.518 765.835 Tm [{{BADDR2}} ] TJ
+1 0 0 1 402.518 757.135 Tm [{{BADDR3}} ] TJ
+1 0 0 1 340.157 748.435 Tm [(City) -5363.5 (:) -430.625 {{CITY}} ] TJ
+1 0 0 1 340.157 739.735 Tm [(State) -5086.5 (:) -430.625 {{STATE}} ] TJ
+1 0 0 1 340.157 731.035 Tm [(Phone) -250.0 (no.) -3086.5 (:) -430.625 (18002600/18001600) ] TJ
+1 0 0 1 340.157 722.335 Tm [(OD) -250.0 (Limit) -3169.5 (:) -430.625 (0) -3000.0 (Currency) -250.0 (:) -250.0 (INR) ] TJ
+1 0 0 1 340.157 713.635 Tm [(Email) -4697.5 (:) -430.625 ({{EMAIL}}) ] TJ
+1 0 0 1 340.157 704.935 Tm [(Cust) -250.0 (ID) -3947.5 (:) -430.625 ({{CUSTOMER_ID}}) ] TJ
+1 0 0 1 340.157 696.235 Tm [(Account) -250.0 (No) -2226.5 (:) -430.625 ({{ACCOUNT_NO}}) -1250.0 (PRIME) -250.0 (POTENTIAL) ] TJ
+1 0 0 1 340.157 687.535 Tm [(A/C) -250.0 (Open) -250.0 (Date) -865.5 (:) -430.625 (23/11/2020) ] TJ
+1 0 0 1 340.157 678.835 Tm [(Account) -250.0 (Status) -1003.5 (:) -430.625 (Regular) ] TJ
+/F5 7.3 Tf
+1 0 0 1 340.157 670.264 Tm [(RTGS/NEFT) -250.0 (IFSC) ] TJ
+/F5 8.0 Tf
+1 0 0 1 396.849 670.135 Tm [(:) -430.625 ({{IFSC}}) -3000.0 (MICR) -250.0 (:) -250.0 ({{MICR}}) ] TJ
+1 0 0 1 340.157 661.366 Tm [(Branch) -250.0 (Code) -1837.5 (:) -430.625 ({{BRANCH_CODE}}) ] TJ
+1 0 0 1 340.157 652.666 Tm [(Account) -250.0 (Type) -1393.5 (:) -430.625 (CURRENT) -250.0 (-) -250.0 (RESIDENTS) -250.0 (\(202\)) ] TJ
+/F7 9.0 Tf
+0 0 1  rg 
+1 0 0 1 28.346 50.108 Tm [(HDFC) -250.0 (BANK) -250.0 (LIMITED) ] TJ
+/F5 8.0 Tf
+1 0 0 1 28.346 40.799 Tm [(*Closing) -250.0 (balance) -250.0 (includes) -250.0 (funds) -250.0 (earmarked) -250.0 (for) -250.0 (hold) -250.0 (and) -250.0 (uncleared) -250.0 (funds) ] TJ
+/F5 7.0 Tf
+0 g
+1 0 0 1 28.346 32.282 Tm [(Contents) -250.0 (of) -250.0 (this) -250.0 (statement) -250.0 (will) -250.0 (be) -250.0 (considered) -250.0 (correct) -250.0 (if) -250.0 (no) -250.0 (error) -250.0 (is) -250.0 (reported) -250.0 (within) -250.0 (30) -250.0 (days) -250.0 (of) -250.0 (receipt) -250.0 (of) -250.0 (statement.The) -250.0 (address) -250.0 (on) -250.0 (this) -250.0 (statement) -250.0 (is) -250.0 (that) -250.0 (on) -250.0 (record) -250.0 (with) -250.0 (the) -250.0 (Bank) -250.0 (as) -250.0 (at) -250.0 (the) -250.0 (day) -250.0 (of) -250.0 (requesting) ] TJ
+1 0 0 1 28.346 24.982 Tm [(this) -250.0 (statement.) ] TJ
+/F7 7.0 Tf
+1 0 0 1 28.346 17.731 Tm [(State) -250.0 (account) -250.0 (branch) -250.0 (GSTN:23AAACH2702H1Z8) ] TJ
+/F5 7.0 Tf
+1 0 0 1 28.346 10.515 Tm [(HDFC) -250.0 (Bank) -250.0 (GSTIN) -250.0 (number) -250.0 (details) -250.0 (are) -250.0 (available) -250.0 (at) -250.0 (https://www.hdfcbank.com/personal/making-payments/online-tax-payment/goods-and-service-tax.) ] TJ
+1 0 0 1 28.346 3.215 Tm [(Registered) -250.0 (Office) -250.0 (Address:) -250.0 (HDFC) -250.0 (Bank) -250.0 (House,Senapati) -250.0 (Bapat) -250.0 (Marg,Lower) -250.0 (Parel,Mumbai) -250.0 (400013) ] TJ
+ET

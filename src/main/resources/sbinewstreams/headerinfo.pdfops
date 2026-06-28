@@ -1,0 +1,1139 @@
+q
+BT
+36 806 Td
+ET
+Q
+2 J
+BT
+1 0 0 1 0 842 Tm
+/F1 10 Tf
+()Tj
+ET
+0.33333 0.32549 0.66667 rg
+1 w
+2 J
+0 0 0 RG
+[] 0 d
+0 788 m
+595 788 l
+595 788 595 788 595 788 c
+595 842 l
+595 842 595 842 595 842 c
+0 842 l
+0 842 0 842 0 842 c
+0 788 l
+0 788 0 788 0 788 c
+f
+0 788 m
+595 788 l
+595 788 595 788 595 788 c
+595 842 l
+595 842 595 842 595 842 c
+0 842 l
+0 842 0 842 0 842 c
+0 788 l
+0 788 0 788 0 788 c
+S
+[] 0 d
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 34 791.86 Tm
+/F1 12 Tf
+1 1 1 rg
+(Account Summary)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 524 817.72 Tm
+/F1 10 Tf
+1 1 1 rg
+(Welcome:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 {{NAME_X}} 801.72 Tm
+/F1 10 Tf
+1 1 1 rg
+({{NAME}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 w
+0 J
+0.8 0.8 0.8 RG
+[] 0 d
+32 760.5 m
+566 760.5 l
+S
+[] 0 d
+2 J
+q 0.85 0 0 0.85 37 731 cm /Xf1 Do Q
+BT
+1 0 0 1 37 731 Tm
+17 0 Td
+-17 0 Td
+ET
+q 0.85 0 0 0.85 37 704 cm /Xf2 Do Q
+BT
+1 0 0 1 37 704 Tm
+17 0 Td
+-17 0 Td
+ET
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+59.5 722 m
+59.5 707 l
+S
+[] 0 d
+2 J
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+59.5 747 m
+59.5 732 l
+S
+[] 0 d
+2 J
+q 0.9375 0 0 0.9375 38 664.19 cm /Xf3 Do Q
+BT
+1 0 0 1 38 664.19 Tm
+15 0 Td
+-15 0 Td
+ET
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+60.5 692 m
+60.5 652 l
+S
+[] 0 d
+2 J
+q 1.06 0 0 1.06 35 504 cm /Xf4 Do Q
+BT
+1 0 0 1 35 504 Tm
+17 0 Td
+-17 0 Td
+ET
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+60.5 637 m
+60.5 622 l
+S
+[] 0 d
+2 J
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+60.5 609 m
+60.5 429 l
+S
+[] 0 d
+2 J
+q 1.06 0 0 1.06 34 401 cm /Xf5 Do Q
+BT
+1 0 0 1 34 401 Tm
+17 0 Td
+-17 0 Td
+ET
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+59.5 419 m
+59.5 399 l
+S
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 66 735.86 Tm
+/F1 12 Tf
+0 0 0 rg
+({{NAME}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 65 712.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{EMAIL}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+{{ADDRSTREAM}}
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 68 627.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Date of Statement)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 626.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 207 627.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{END_DATE}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 66 576.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Uncleared Amount)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 67 598.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Clear Balance)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 66 552.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(+MOD Bal)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 65 530.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Lien)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 65 507.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Limit)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 65 481.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Monthly Avg Balance)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 65 459.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Interest Rate)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 65 437.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Drawing Power)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 599.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 576.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 551.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 529.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 505.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 480.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 458.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 436.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 65 407.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Account open Date)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 199 407.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 207 601.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{OPENING_BAL}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 207 577.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(0.00)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 208 552.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(0.00)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 208 531.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(0.0)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 208 506.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(0.00)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 209 481.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(0.00)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 208 460.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(2.50 % p.a.)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 207 437.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(0.00)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 208 408.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(09/05/2022)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 344 722.11 Tm
+/F1 10 Tf
+0 0 0 rg
+({{BRANCH_NAME}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+q 0.9375 0 0 0.9375 322 682.19 cm /Xf3 Do Q
+BT
+1 0 0 1 322 682.19 Tm
+15 0 Td
+-15 0 Td
+ET
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+342.5 706 m
+342.5 676 l
+S
+[] 0 d
+2 J
+q 1.06 0 0 1.06 319 630 cm /Xf5 Do Q
+BT
+1 0 0 1 319 630 Tm
+17 0 Td
+-17 0 Td
+ET
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+343.5 665 m
+343.5 598 l
+S
+[] 0 d
+2 J
+q 1.21 0 0 1.21 321 500 cm /Xf6 Do Q
+BT
+1 0 0 1 321 500 Tm
+17 0 Td
+-17 0 Td
+ET
+q 0.94444 0 0 0.94444 321 406.72 cm /Xf7 Do Q
+BT
+1 0 0 1 321 406.72 Tm
+17 0 Td
+-17 0 Td
+ET
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+344.5 587 m
+344.5 432 l
+S
+[] 0 d
+2 J
+1 w
+0 J
+0.43529 0.0902 0.74118 RG
+[] 0 d
+344.5 423 m
+344.5 403 l
+S
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 347 698.11 Tm
+/F1 {{BADDRFONT}} Tf
+0 0 0 rg
+({{BADDRL1}})Tj
+0 g
+1 0 0 1 347 688.22 Tm
+0 0 0 rg
+({{BADDRL2}})Tj
+0 g
+1 0 0 1 347 678.32 Tm
+0 0 0 rg
+({{BADDRL3}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 656.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Branch Code)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 621.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Branch Email ID)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 602.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Branch Phone)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 601.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 619.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 656.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 656.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{BRANCH_CODE}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 621.18 Tm
+/F1 9.5 Tf
+0 0 0 rg
+(SBI.{{BRANCH_CODE}}@SBI.CO.IN)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 449 601.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{BRANCH_PHONE}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 575.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 575.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(CIF Number)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 557.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 557.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Account Number)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 477.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 477.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Account Status)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 497.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 497.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Currency)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 518.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 518.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(IFSC Code)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 538.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 538.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Product)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 410.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 410.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Nominee Name)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 576.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{CIF}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 558.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{ACCOUNT_NO}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 539.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{ACCOUNT_TYPE}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 519.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{IFSC}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 497.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(INR)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 477.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(OPEN)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 411.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(XXXXXXXXXX)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 203 371.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Statement From)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 285 371.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 290 371.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{START_DATE}} to {{END_DATE}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+q 1 0 0 1 242 805 cm /Xf8 Do Q
+BT
+1 0 0 1 242 805 Tm
+117 0 Td
+-117 0 Td
+ET
+q 0.92308 0 0 0.92308 248 808.15 cm /Xf9 Do Q
+BT
+1 0 0 1 248 808.15 Tm
+12 0 Td
+-12 0 Td
+ET
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 269 812.72 Tm
+/F1 10 Tf
+1 1 1 rg
+(As on)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 299 812.72 Tm
+/F1 10 Tf
+1 1 1 rg
+({{GEN_DATE}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 455.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(CKYCR Number)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 456.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 451 456.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{CKYCR}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 349 436.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(MICR Code)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 443 437.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 452 436.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{MICR}})Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 219.33 774.86 Tm
+/F1 12 Tf
+0 0 0 rg
+(STATEMENT OF ACCOUNT)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 339 739 Tm
+/F1 14 Tf
+0 0.71765 1 rg
+( State Bank of India)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+q 0.85 0 0 0.85 38 621 cm /Xf10 Do Q
+BT
+1 0 0 1 38 621 Tm
+17 0 Td
+-17 0 Td
+ET
+q 1.16 0 0 1.16 34 802 cm /Xf11 Do Q
+BT
+1 0 0 1 34 802 Tm
+107.53 0 Td
+-107.53 0 Td
+ET
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 348 639.72 Tm
+/F1 10 Tf
+0 0 0 rg
+(Branch Name)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 442 639.79 Tm
+/F1 11 Tf
+0 0 0 rg
+(:)Tj
+0 g
+ET
+1 0 0 1 0 0 cm
+[] 0 d
+2 J
+1 0 0 1 0 0 cm
+BT
+1 0 0 1 450 639.72 Tm
+/F1 10 Tf
+0 0 0 rg
+({{BRANCH_NAME}})Tj
+0 g
+ET

@@ -1,0 +1,304 @@
+q
+BT
+/F1 36 Tf
+609.71 1590.42 Td
+0 0 0 rg
+(Detailed Statement)Tj
+ET
+Q
+q
+BT
+/F1 18 Tf
+1284.92 1501.83 Td
+(Date: {{DATE2}})Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+121.5 1425.09 Td
+(Account holder name:)Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+448.5 1436.73 Td
+({{NAME1}})Tj
+( )Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+448.5 1413.44 Td
+({{NAME2}})Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+775.88 1425.09 Td
+(Account holder address:)Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+1103.25 1448.38 Td
+({{ADDR1}})Tj
+( )Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+1103.25 1425.09 Td
+({{ADDR2}})Tj
+( )Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+1103.25 1401.8 Td
+({{ADDR3}})Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+121.5 1366.47 Td
+(Customer ID:)Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+448.5 1366.47 Td
+({{CUSTOMER_ID}})Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+775.88 1366.47 Td
+(IFSC:)Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+1103.25 1366.47 Td
+({{IFSC}})Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+121.5 1331.14 Td
+(Account number:)Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+448.5 1331.14 Td
+({{ACCOUNT_NO}})Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+775.88 1331.14 Td
+(Branch Name:)Tj
+ET
+Q
+q
+BT
+/F2 20.25 Tf
+1103.25 1331.14 Td
+({{BRANCH_NAME}})Tj
+ET
+Q
+q
+0 0 0 RG
+0.75 w
+115.13 1473 m
+115.13 1318.94 l
+S
+Q
+q
+0 0 0 RG
+0.75 w
+1424.63 1473 m
+1424.63 1318.94 l
+S
+Q
+q
+0 0 0 RG
+0.75 w
+114.75 1472.62 m
+442.5 1472.62 l
+S
+Q
+q
+0 0 0 RG
+0.75 w
+442.5 1472.62 m
+769.88 1472.62 l
+S
+Q
+q
+0 0 0 RG
+0.75 w
+769.88 1472.62 m
+1097.25 1472.62 l
+S
+Q
+q
+0 0 0 RG
+0.75 w
+1097.25 1472.62 m
+1425 1472.62 l
+S
+Q
+q
+0 0 0 RG
+0.75 w
+114.75 1319.31 m
+442.5 1319.31 l
+S
+Q
+q
+0 0 0 RG
+0.75 w
+442.5 1319.31 m
+769.88 1319.31 l
+S
+Q
+q
+0 0 0 RG
+0.75 w
+769.88 1319.31 m
+1097.25 1319.31 l
+S
+Q
+q
+0 0 0 RG
+0.75 w
+1097.25 1319.31 m
+1425 1319.31 l
+S
+Q
+q
+BT
+/F1 18 Tf
+1357.98 1279.07 Td
+( )Tj
+ET
+Q
+q
+BT
+/F1 18 Tf
+1357.98 1258.37 Td
+( )Tj
+ET
+Q
+q
+BT
+/F1 18 Tf
+118.5 1144.07 Td
+(Transaction type: All)Tj
+ET
+Q
+q
+BT
+/F1 18 Tf
+296.54 1144.07 Td
+( )Tj
+ET
+Q
+q
+BT
+/F1 18 Tf
+118.5 1123.37 Td
+( )Tj
+ET
+Q
+q
+117 1053.14 100.12 54.15 re
+W
+n
+q
+BT
+/F2 21 Tf
+132 1073.77 Td
+0 0 0 rg
+(Sr No)Tj
+ET
+Q
+Q
+q
+219.37 1053.14 134.24 54.15 re
+W
+n
+q
+BT
+/F2 21 Tf
+234.37 1073.77 Td
+0 0 0 rg
+(Date)Tj
+ET
+Q
+Q
+q
+355.85 1053.14 452.71 54.15 re
+W
+n
+q
+BT
+/F2 21 Tf
+370.85 1073.77 Td
+0 0 0 rg
+(Remarks)Tj
+ET
+Q
+Q
+q
+810.81 1053.14 191.11 54.15 re
+W
+n
+q
+BT
+/F2 21 Tf
+825.81 1073.77 Td
+0 0 0 rg
+(Debit)Tj
+ET
+Q
+Q
+q
+1004.17 1053.14 191.11 54.15 re
+W
+n
+q
+BT
+/F2 21 Tf
+1019.17 1073.77 Td
+0 0 0 rg
+(Credit)Tj
+ET
+Q
+Q
+q
+1197.52 1053.14 225.23 54.15 re
+W
+n
+q
+BT
+/F2 21 Tf
+1212.52 1073.77 Td
+0 0 0 rg
+(Balance)Tj
+ET

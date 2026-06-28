@@ -1,0 +1,438 @@
+{
+  "id": "376cd8b9-b8e7-83af-8a99-6c210c1d4b14",
+  "details": {
+    "name": "SHAILENDRA PAWAR SO TILAK CHAND PAWAR",
+    "accountNumber": "40973913131",
+    "ifsc": "SBIN0061102",
+    "branch": "Surat-Cloth Market",
+    "address": "CO TILAKCHAND VILL\nPOARSODI TORANWADA AMLA",
+    "branchAddress": "1st Floor,\nShanti Point, Surat - Cloth Market (ring Road).,Surat, Surat-395002, Gujarat, India",
+    "micr": "395485004",
+    "cykr": "XXXXXXXXXX8218",
+    "branchPhoneNo": "9099091998",
+    "customerRelNo": "xxxxxx629",
+    "accountType": "Savings",
+    "startingBalance": 96500,
+    "state": "BEST STATE WORLD",
+    "city": "CITY WORLD",
+    "pincode": 462038,
+    "phoneNumber": "XXXXXX8885",
+    "email": "RAXXXX15@GMAIL.COM"
+  },
+  "meta": {
+    "generatedAt": "2025-12-24T21:21:49.812Z",
+    "template": "HDFC",
+    "statementPeriodStart": "2026-01-01T13:58:30.567Z",
+    "statementPeriodEnd": "2026-01-09T10:50:41.748Z",
+    "password": "",
+    "userType": "salaried",
+    "configHash": "5bf3d528-8053-1524-2acf-8a50b0c5b0c9",
+    "seed": 1104174
+  },
+  "transactions": [
+    {
+      "id": "02f40d18-c409-95bd-ea03-c8a6554831f2",
+      "date": "2025-10-01T11:30:26.000Z",
+      "description": "UPI/518648023125/DR/Google/ICIC/gpayrecha/UPI",
+      "reference": "0000421492523946",
+      "debit": 366.90,
+      "credit": 0,
+      "balance": 234.87
+    },
+    {
+      "id": "24658dce-18fb-2650-6eac-3aa53c1c9327",
+      "date": "2025-10-03T15:42:31.000Z",
+      "description": "UPI/307358311009/DR/MOHDA/YESB/810317290/Paymen", "reference": "UPI-796593101692",
+      "debit": 1004.04,
+      "credit": 0,
+      "balance": 73067.72
+    },
+    {
+      "id": "c3dbac98-801f-b64c-74f5-b831d9ac00ac",
+      "date": "2025-10-05T10:18:27.000Z",
+      "description": "UPI/456030599414/CR/ARIFK/UTIB/arifkhan5/Paymen",
+      "reference": "UPI-111383981966",
+      "debit": 2066.11,
+      "credit": 0,
+      "balance": 71001.61
+    },
+    {
+      "id": "2cd56791-a2b3-e302-fb0d-82c5b6a6b10d",
+      "date": "2025-10-07T13:22:21.000Z",
+      "description": "UPI/KOMAL KHAN/648521482989/UPI",
+      "reference": "UPI-648521482989",
+      "debit": 7616.6,
+      "credit": 0,
+      "balance": 63385.01
+    },
+    {
+      "id": "caedfbde-261d-56d1-08bb-44252adcdd45",
+      "date": "2025-10-07T14:52:29.000Z",
+      "description": "UPI/Shabaz Alam Sha/636842039383/Verified Paytm",
+      "reference": "UPI-308643576138",
+      "debit": 2417.74,
+      "credit": 0,
+      "balance": 60967.27
+    },
+    {
+      "id": "831532a8-e91f-55b5-fb70-f30cee4c0d30",
+      "date": "2025-10-08T10:41:14.000Z",
+      "description": "UPI/Mr Nilesh Dines/636842123879/Paid via SuperM",
+      "reference": "UPI-616970031351",
+      "debit": 0,
+      "credit": 2073.97,
+      "balance": 63041.24
+    },
+    {
+      "id": "e32e5b44-1b1b-b1ed-9551-3e1d2d83ff2d",
+      "date": "2025-10-10T07:01:06.000Z",
+      "description": "UPI/NAVEEN JAIN/531648478872/UPI",
+      "reference": "UPI-531648478872",
+      "debit": 7861.9,
+      "credit": 0,
+      "balance": 55179.34
+    },
+    {
+      "id": "5d254c13-a471-2319-72e6-b8c20be9047f",
+      "date": "2025-10-14T08:05:04.000Z",
+      "description": "UPI/KIRAN DAS/765868313578/UPI",
+      "reference": "UPI-765868313578",
+      "debit": 2550.87,
+      "credit": 0,
+      "balance": 52628.47
+    },
+    {
+      "id": "46f9bc2f-0f93-9ac7-e475-2e307b95b21a",
+      "date": "2025-10-15T14:41:45.000Z",
+      "description": "UPI/Nishaben Devend/443157053197/Payment from Ph",
+      "reference": "UPI-765868313578",
+      "debit": 0,
+      "credit": 113.46,
+      "balance": 52741.93
+    },
+    {
+      "id": "8865e3a4-7828-bdb6-4faa-4081ec8e9bc7",
+      "date": "2025-10-17T07:05:30.000Z",
+      "description": "UPI/Dantani Devendr/600640645916/Paid via SuperM",
+      "reference": "UPI-829945513354",
+      "debit": 1521.78,
+      "credit": 0,
+      "balance": 51220.15
+    },
+    {
+      "id": "993f534c-b995-204c-8808-0e9d911d2c8c",
+      "date": "2025-10-21T04:43:00.000Z",
+      "description": "UPI/VIKAS GUPTA/742127267683/UPI",
+      "reference": "UPI-742127267683",
+      "debit": 3337.67,
+      "credit": 0,
+      "balance": 47882.48
+    },
+    {
+      "id": "9b438cf4-155b-2018-4aa6-28ca1c4d3fe8",
+      "date": "2025-10-23T08:59:27.000Z",
+      "description": "UPI/BHAVNA DAS/351555307397/UPI",
+      "reference": "UPI-351555307397",
+      "debit": 7969.91,
+      "credit": 0,
+      "balance": 39912.57
+    },
+    {
+      "id": "1c3dfe3e-ecd5-069f-c4b6-e024a5446bc1",
+      "date": "2025-10-25T03:53:47.000Z",
+      "description": "UPI/RAMESH JAIN/154526536589/UPI",
+      "reference": "UPI-154526536589",
+      "debit": 0,
+      "credit": 1199.28,
+      "balance": 41111.85
+    },
+    {
+      "id": "920f3dc5-9159-a402-ccea-508ebbc20678",
+      "date": "2025-10-27T07:34:11.000Z",
+      "description": "UPI/AMIT DAS/994781044027/UPI",
+      "reference": "UPI-994781044027",
+      "debit": 4519.92,
+      "credit": 0,
+      "balance": 36591.93
+    },
+    {
+      "id": "ca6907b2-7348-c9ad-b90d-5797b2e928f5",
+      "date": "2025-10-28T08:00:21.000Z",
+      "description": "UPI/RAJESH MEHTA/415961768027/UPI",
+      "reference": "UPI-415961768027",
+      "debit": 2488.36,
+      "credit": 0,
+      "balance": 34103.57
+    },
+    {
+      "id": "4b7fd1a0-a1aa-e409-859e-9fc3ee57e6c2",
+      "date": "2025-10-30T09:39:57.000Z",
+      "description": "UPI/ARUN MALIK/156884026906/UPI",
+      "reference": "UPI-156884026906",
+      "debit": 0,
+      "credit": 1257.62,
+      "balance": 35361.19
+    },
+    {
+      "id": "0c70c884-bcaf-edb6-ac3a-566d2779c3b5",
+      "date": "2025-10-31T05:04:34.000Z",
+      "description": "UPI/ANKITA NAIR/629601183514/UPI",
+      "reference": "UPI-629601183514",
+      "debit": 5999.21,
+      "credit": 0,
+      "balance": 29361.98
+    },
+    {
+      "id": "b819d17f-32d3-00d8-7f80-e57880dbd86d",
+      "date": "2025-11-05T05:50:07.000Z",
+      "description": "UPI-SAFAL STORE-PAYTMQR5AJQ81@PAYTM-YESB 0000423859972088",
+      "reference": "NEFT-141952462254",
+      "debit": 0,
+      "credit": 50939.04,
+      "balance": 80301.02
+    },
+    {
+      "id": "9a789ffb-6650-3479-0d00-a3d010770150",
+      "date": "2025-11-08T14:41:51.000Z",
+      "description": "UPI/GAURAV JAIN/495039818943/UPI",
+      "reference": "UPI-495039818943",
+      "debit": 8150.66,
+      "credit": 0,
+      "balance": 72150.36
+    },
+    {
+      "id": "aba92ce3-2511-8b64-ab94-e0f4f93c4f02",
+      "date": "2025-11-10T15:43:45.000Z",
+      "description": "UPI/PRIYA JAIN/157483660296/UPI",
+      "reference": "UPI-157483660296",
+      "debit": 4060.2,
+      "credit": 0,
+      "balance": 68090.16
+    },
+    {
+      "id": "c10aacca-49c4-32af-9db9-42a7f5db3bf8",
+      "date": "2025-11-12T05:38:43.000Z",
+      "description": "UPI/Shabaz Alam Sha/116798638883/Verified Paytm",
+      "reference": "UPI-534564391695",
+      "debit": 501.62,
+      "credit": 0,
+      "balance": 67588.54
+    },
+    {
+      "id": "47d50ab6-5cbc-8a02-ae17-be0728c1b774",
+      "date": "2025-11-15T04:58:17.000Z",
+      "description": "UPI/BHAVNA JAIN/806571475795/UPI",
+      "reference": "UPI-806571475795",
+      "debit": 2868.86,
+      "credit": 0,
+      "balance": 64719.68
+    },
+    {
+      "id": "4d39fd19-dc70-79ab-28bc-928c6f833430",
+      "date": "2025-11-16T10:12:43.000Z",
+      "description": "UPI/ASHOK MEHTA/496771789618/UPI",
+      "reference": "UPI-496771789618",
+      "debit": 1160.18,
+      "credit": 0,
+      "balance": 63559.5
+    },
+    {
+      "id": "eda81240-549f-bdeb-d0e4-69f17180cd63",
+      "date": "2025-11-17T03:49:11.000Z",
+      "description": "UPI/SAISHUBHAM PETR/600766772374/Paid via SuperM",
+      "reference": "UPI-388911927713",
+      "debit": 5812.48,
+      "credit": 0,
+      "balance": 57747.02
+    },
+    {
+      "id": "2ab0aebd-399e-ecb6-0919-652860a14086",
+      "date": "2025-11-17T13:38:33.000Z",
+      "description": "UPI/SAISHUBHAM PETR/600766801697/Paid via SuperM",
+      "reference": "UPI-102665947706",
+      "debit": 0,
+      "credit": 332.84,
+      "balance": 58079.86
+    },
+    {
+      "id": "9f44601e-9cd0-5d60-6d81-697a0facf3aa",
+      "date": "2025-11-18T13:30:46.000Z",
+      "description": "UPI/PINDARA MUSTAFA/600766935925/Paid via SuperM",
+      "reference": "UPI-102665947706",
+      "debit": 5405.89,
+      "credit": 0,
+      "balance": 52673.97
+    },
+    {
+      "id": "ebb0e03b-b8de-40e3-1dae-9f8e71ff4c11",
+      "date": "2025-11-20T11:11:48.000Z",
+      "description": "UPI/BILLHUB SOLUTIO/116802804186/4812512089",
+      "reference": "IMPS-367127071336",
+      "debit": 0,
+      "credit": 2299.98,
+      "balance": 54973.95
+    },
+    {
+      "id": "74bbd377-699b-6897-d0df-443536e38748",
+      "date": "2025-11-21T06:22:19.000Z",
+      "description": "UPI/SANJAY IYER/504692913177/UPI",
+      "reference": "UPI-504692913177",
+      "debit": 6362.88,
+      "credit": 0,
+      "balance": 48611.07
+    },
+    {
+      "id": "15777843-9690-09fa-3100-150fbf3ec832",
+      "date": "2025-11-22T13:46:08.000Z",
+      "description": "UPI/GAURAV MEHTA/198538558602/UPI",
+      "reference": "UPI-198538558602",
+      "debit": 4650.54,
+      "credit": 0,
+      "balance": 43960.53
+    },
+    {
+      "id": "0ca53b79-b133-c28d-fbff-690a501c74c6",
+      "date": "2025-11-23T12:50:02.000Z",
+      "description": "UPI/SONALI IYER/731913715816/UPI",
+      "reference": "UPI-731913715816",
+      "debit": 1175.36,
+      "credit": 0,
+      "balance": 42785.17
+    },
+    {
+      "id": "e4cb08e6-56db-7c77-c3e5-2342e9c21c4f",
+      "date": "2025-11-26T06:10:42.000Z",
+      "description": "UPI/SUNIL NAIR/620080828452/UPI",
+      "reference": "UPI-620080828452",
+      "debit": 0,
+      "credit": 1510.72,
+      "balance": 44295.89
+    },
+    {
+      "id": "33971857-3f4e-60af-d862-5885d9ea07d7",
+      "date": "2025-11-29T13:34:49.000Z",
+      "description": "UPI/POOJA SHARMA/405983029311/UPI",
+      "reference": "UPI-405983029311",
+      "debit": 7472.91,
+      "credit": 0,
+      "balance": 36822.98
+    },
+    {
+      "id": "6aaafcca-94de-dcfd-bce9-b0637e89a9e1",
+      "date": "2025-12-05T08:33:09.000Z",
+      "description": "UPI-SAFAL STORE-PAYTMQR5AJQ81@PAYTM-YESB 0000423859972088",
+      "reference": "NEFT-648442923602",
+      "debit": 0,
+      "credit": 49716.3,
+      "balance": 86539.28
+    },
+    {
+      "id": "dc17c011-daed-720b-5b22-3698548658fb",
+      "date": "2025-12-09T15:00:40.000Z",
+      "description": "UPI/BHAVNA KHAN/880219732346/UPI",
+      "reference": "UPI-880219732346",
+      "debit": 3465.21,
+      "credit": 0,
+      "balance": 83074.07
+    },
+    {
+      "id": "5aa943a5-5449-9d4a-af6c-43b137f8a7e3",
+      "date": "2025-12-11T05:52:52.000Z",
+      "description": "UPI/ANKITA JAIN/175801947178/UPI",
+      "reference": "UPI-175801947178",
+      "debit": 6825.06,
+      "credit": 0,
+      "balance": 76249.01
+    },
+    {
+      "id": "e9ef988b-f570-ce52-a4c8-a508f9ae5ad5",
+      "date": "2025-12-17T05:23:44.000Z",
+      "description": "UPI/ARUN DAS/115173260602/UPI",
+      "reference": "UPI-115173260602",
+      "debit": 2340.27,
+      "credit": 0,
+      "balance": 73908.74
+    },
+    {
+      "id": "82dda5fa-29ff-53ec-f54f-68ef7ba75280",
+      "date": "2025-12-20T04:05:50.000Z",
+      "description": "UPI/KOMAL MEHTA/407272192842/UPI",
+      "reference": "UPI-407272192842",
+      "debit": 8073.08,
+      "credit": 0,
+      "balance": 65835.66
+    },
+    {
+      "id": "5be001d2-96ec-bb26-f64d-94b4ee212805",
+      "date": "2025-12-21T06:00:00.000Z",
+      "description": "INT. CREDIT",
+      "reference": "",
+      "debit": 0,
+      "credit": 404.18,
+      "balance": 66239.84
+    },
+    {
+      "id": "f7783572-193a-4f55-71e8-58503533cef1",
+      "date": "2025-12-22T09:24:40.000Z",
+      "description": "NEFT/AMIT SINGH/Transfer",
+      "reference": "NEFT-373193000604",
+      "debit": 0,
+      "credit": 1438.59,
+      "balance": 67678.43
+    },
+    {
+      "id": "c8dd8476-bb16-f3a8-e882-f0b3ddc4bb3a",
+      "date": "2025-12-23T14:05:48.000Z",
+      "description": "UPI/VIKAS MALIK/754766066656/UPI",
+      "reference": "UPI-754766066656",
+      "debit": 5642.52,
+      "credit": 0,
+      "balance": 62035.91
+    },
+    {
+      "id": "3c4f9654-ab76-18ff-435a-eb38ee73035c",
+      "date": "2025-12-24T06:57:22.000Z",
+      "description": "UPI/RAMESH NAIR/439135658730/UPI",
+      "reference": "UPI-439135658730",
+      "debit": 7837.87,
+      "credit": 0,
+      "balance": 54198.04
+    },
+    {
+      "id": "7b553d25-5d5f-2524-87ba-1bb26d2613e3",
+      "date": "2025-12-24T15:56:07.000Z",
+      "description": "UPI/SANJAY JAIN/325872210157/UPI",
+      "reference": "UPI-325872210157",
+      "debit": 890.13,
+      "credit": 0,
+      "balance": 53307.91
+    },
+    {
+      "id": "fbef59f9-1b23-b693-d68c-eb95e94d1604",
+      "date": "2025-12-25T13:11:48.000Z",
+      "description": "UPI/SANJAY SHARMA/822671485713/UPI",
+      "reference": "UPI-822671485713",
+      "debit": 0,
+      "credit": 1959.06,
+      "balance": 55266.97
+    },
+    {
+      "id": "866c5236-815d-4e07-db74-f45836b4a689",
+      "date": "2025-12-26T08:30:29.000Z",
+      "description": "UPI/BHAVNA PATEL/952160142596/UPI",
+      "reference": "UPI-952160142596",
+      "debit": 5499.18,
+      "credit": 0,
+      "balance": 49767.79
+    },
+    {
+      "id": "a3e011ce-0bf2-537d-6783-0cc166f71736",
+      "date": "2025-12-29T03:55:50.000Z",
+      "description": "UPI/KAVITA IYER/773193356416/UPI",
+      "reference": "UPI-773193356416",
+      "debit": 3453.25,
+      "credit": 0,
+      "balance": 46314.54
+    }
+  ]
+}
