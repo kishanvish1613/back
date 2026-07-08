@@ -23,43 +23,42 @@ public class SbiTemplate2 implements BankPdfTemplate {
         PdfWriter writer = PdfWriter.getInstance(doc, out);
 
         writer.setPdfVersion(PdfWriter.PDF_VERSION_1_4);
-
         writer.setEncryption(
                 stmt.meta.password == null
                         ? stmt.details.accountNumber.getBytes()
                         : stmt.meta.password.getBytes(),
-                null,
-                0,
-                PdfWriter.ENCRYPTION_AES_128
-        );
+                null, 0, PdfWriter.ENCRYPTION_AES_128);
 
         PdfDictionary info = writer.getInfo();
-        info.put(
-                PdfName.PRODUCER,
-                new PdfString(
-                        "iText 2.0.4 (by lowagie.com); modified using iText® 5.5.10 ©2000-2015 iText Group NV (AGPL-version)"
-                )
-        );
+        info.put(PdfName.PRODUCER, new PdfString(
+                "iText 2.0.4 (by lowagie.com); modified using iText® 5.5.10 ©2000-2015 iText Group NV (AGPL-version)"));
         setPdfDates(writer);
 
         Fonts fonts = new Fonts();
 
-        writer.setPageEvent(new SbiFirstPageHeaderEvent(fonts, stmt));
+        // Attach the header event
+        SbiFirstPageHeaderEvent headerEvent = new SbiFirstPageHeaderEvent(fonts, stmt);
+        writer.setPageEvent(headerEvent);
 
-        int addrlines = stmt.details.address.split("\\r?\n").length;
+        // ---------- Static margin calculation ----------
+        int addrLines = stmt.details.address != null
+                ? stmt.details.address.split("[\\r\\n,]+").length
+                : 0;
+
         float pageHeight = doc.getPageSize().getHeight();
         float startY = 806f;
-        float marginTop =
-                pageHeight - startY + 54f + (15 + addrlines) * 13.5f + 3 * 18f;
 
-        doc.setMargins(
-                doc.leftMargin(),
-                doc.rightMargin(),
-                marginTop,
-                doc.bottomMargin()
-        );
+        float noteLines = 2 * 13.5f;
+        float marginTop = pageHeight - startY + 54f
+                + (15 + addrLines) * 13.5f
+                + 3 * 18f
+                + SbiFirstPageHeaderEvent.EXTRA_TOP_GAP
+                + noteLines
+                - 27f;
 
-        doc.open();
+        doc.setMargins(doc.leftMargin(), doc.rightMargin(), marginTop, doc.bottomMargin());
+
+        doc.open();   // header is drawn by page event
 
         addTransactions(doc, fonts, stmt);
         addFooterExact(doc, writer, fonts);
@@ -96,9 +95,11 @@ public class SbiTemplate2 implements BankPdfTemplate {
         for (Transaction tx : stmt.transactions) {
             table.addCell(bodyCell(format(tx.date), fonts.body, Element.ALIGN_RIGHT));
             table.addCell(bodyCell(format(tx.date), fonts.body, Element.ALIGN_RIGHT));
-            table.addCell(bodyCell(tx.description, fonts.body, Element.ALIGN_LEFT));
 
-            // Reference column
+            // Salary description gets 4 lines, others max 3
+            int descMaxLines = (tx.description != null && tx.description.toUpperCase().contains("SALARY")) ? 4 : 3;
+            table.addCell(bodyCell(tx.description, fonts.body, Element.ALIGN_LEFT, descMaxLines));
+
             String rawRef = (tx.reference != null) ? tx.reference : "";
             String ref = rawRef.replace("\n", " ").trim();
             if (ref.isEmpty()) ref = "-";
@@ -107,7 +108,6 @@ public class SbiTemplate2 implements BankPdfTemplate {
             table.addCell(bodyCell(amount(tx.debit), fonts.body, Element.ALIGN_RIGHT));
             table.addCell(bodyCell(amount(tx.credit), fonts.body, Element.ALIGN_RIGHT));
 
-            // ---- Clamp balance ----
             double safeBalance = Math.max(0.0, tx.balance);
             table.addCell(bodyCell(amount(safeBalance), fonts.body, Element.ALIGN_RIGHT));
         }
@@ -122,8 +122,22 @@ public class SbiTemplate2 implements BankPdfTemplate {
         table.addCell(c);
     }
 
+    // Original bodyCell – used for all cells that don't need a line limit
     private PdfPCell bodyCell(String text, Font font, int align) {
-        PdfPCell c = new PdfPCell(new Phrase(text != null ? text : "", font));
+        return bodyCell(text, font, align, Integer.MAX_VALUE);
+    }
+
+    // New bodyCell – limits lines to maxLines
+    private PdfPCell bodyCell(String text, Font font, int align, int maxLines) {
+        if (text == null) text = "";
+        Paragraph p = new Paragraph();
+        String[] lines = text.split("\\r?\\n");
+        int lineCount = Math.min(lines.length, maxLines);
+        for (int i = 0; i < lineCount; i++) {
+            if (i > 0) p.add(Chunk.NEWLINE);
+            p.add(new Chunk(lines[i], font));
+        }
+        PdfPCell c = new PdfPCell(p);
         c.setPadding(2);
         c.setHorizontalAlignment(align);
         return c;
@@ -134,7 +148,6 @@ public class SbiTemplate2 implements BankPdfTemplate {
     private void addFooterExact(Document doc, PdfWriter writer, Fonts fonts) {
         PdfContentByte cb = writer.getDirectContent();
         BaseFont bf1 = fonts.body.getBaseFont();
-        BaseFont bf2 = fonts.bold.getBaseFont();
 
         final float LEFT = 36f;
         final float BOTTOM_LIMIT = doc.bottomMargin() + 4f;
@@ -165,111 +178,13 @@ public class SbiTemplate2 implements BankPdfTemplate {
         line.down(13.5f);
         cb.setFontAndSize(bf1, 9);
         cb.showText(
-                "\t\t\t\t\t\t Please do not share your ATM, Debit/Credit card number, PIN and OTP with anyone over mail, SMS, phone call or any other"
+                "\t\t\t\t\t\t Please do not share your ATM, Debit/Credit card number, PIN (Personal Identification Number) and OTP (One Time Password)"
         );
 
         line.down(13.5f);
-        cb.showText("media. Bank never asks for such information.");
-
-        line.down(18);
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(18);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("ATM: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Automated Teller Machine");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("OTP: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("One Time Password");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("PIN: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Personal Identification Number");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("MICR: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Magnetic Ink Character Recognition technology");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("CIF: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Customer Information File");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("MOD: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Multi Option Deposit");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("IFS Code: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Indian Financial System Code");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("RTGS: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Real Time Gross Settlement");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("NEFT: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("National Electronic Fund Transfer");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("IMPS: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Immediate Payment Service");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("UPI: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Unified Payments Interface");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
-
-        line.down(16);
-        cb.setFontAndSize(bf2, 9);
-        cb.showText("CKYCR: ");
-        cb.setFontAndSize(bf1, 9);
-        cb.showText("Central Know Your Customer Record");
-        cb.setFontAndSize(bf1, 12);
-        cb.showText(" ");
+        cb.showText(
+                "with anyone over mail, SMS, phone call or any other media. Bank never asks for such information."
+        );
 
         line.down(18);
         cb.showText(" ");
@@ -281,13 +196,10 @@ public class SbiTemplate2 implements BankPdfTemplate {
         );
 
         line.down(18);
-        cb.setFontAndSize(bf1, 12);
         cb.showText(" ");
 
         cb.endText();
     }
-
-    // ================= HELPERS =================
 
     private static final DateTimeFormatter SBI_FORMAT =
             DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
@@ -297,7 +209,6 @@ public class SbiTemplate2 implements BankPdfTemplate {
     }
 
     private String amount(double value) {
-        // Kill -0.00 and tiny negatives
         if (Math.abs(value) < 0.001) value = 0.0;
         if (value == 0) return "";
         boolean negative = value <= 0;

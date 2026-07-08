@@ -463,7 +463,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         boolean isDebit = txn.credit == 0;
         double amt = (isDebit ? txn.debit : txn.credit);
-        // Clamp amount for display (should already be ≥0, but safety)
+        // Clamp amount for display
         Object[] r = TemplateUtils.formatBalanceAndRightAlignX(
                 Math.max(0, amt),
                 fonts.regular, 7.68f,
@@ -480,7 +480,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         amt = txn.balance;
         r = TemplateUtils.formatBalanceAndRightAlignX(
-                Math.max(0, amt),   // Clamp balance display
+                Math.max(0, amt),
                 fonts.regular, 7.68f, RIGHT_BAL
         );
         fAmt = (String) r[0];
@@ -566,6 +566,27 @@ public class KotakNewTemplate implements BankPdfTemplate {
         return lines;
     }
 
+    // ---------- NEW helper: wrap by actual rendered pixel width ----------
+    private List<String> wrapTextByWidth(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
+        List<String> lines = new ArrayList<>();
+        String[] words = text.trim().split("\\s+");
+        StringBuilder line = new StringBuilder();
+        for (String word : words) {
+            String test = line.length() == 0 ? word : line + " " + word;
+            float width = (font.getStringWidth(test) / 1000f) * fontSize;
+            if (width > maxWidth && line.length() > 0) {
+                lines.add(line.toString());
+                line.setLength(0);
+                line.append(word);
+            } else {
+                line.setLength(0);
+                line.append(test);
+            }
+        }
+        if (line.length() > 0) lines.add(line.toString());
+        return lines;
+    }
+
     private int countWrappedLines(PDFont font, float fontSize, String text, float maxWidth) throws Exception {
         String[] words = text.split("\\s+");
         StringBuilder line = new StringBuilder();
@@ -595,7 +616,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         }
     }
 
-    // ----------------- SUMMARY PAGE (with clamped closing balance) -----------------
+    // ----------------- SUMMARY PAGE (with three-column footer) -----------------
     private final void drawSummaryPage(PageCursor pc, Fonts fonts) throws IOException {
         PDPageContentStream cs = pc.cs();
 
@@ -756,7 +777,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.endText();
 
         r = TemplateUtils.formatBalanceAndRightAlignX(
-                Math.max(0, CLOSING_BAL),   // clamp closing balance display
+                Math.max(0, CLOSING_BAL),
                 fonts.regular, 7.68f, CLOSING_RIGHT
         );
         fAmt = (String) r[0];
@@ -806,70 +827,126 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.setNonStrokingColor(0f);
         cs.endText();
 
-        cs.saveGraphicsState();
-        cs.restoreGraphicsState();
-        cs.saveGraphicsState();
-        cs.setLineCapStyle(2);
-        cs.appendRawCommands("0 G\n");
-        cs.appendRawCommands("1 w\n");
-        cs.appendRawCommands("0.62353 0.63137 0.64314 RG\n185.43 167 m\n185.43 223 l\nS\n0 G\n");
-        cs.restoreGraphicsState();
+        // =================================================================
+        // THREE-COLUMN CONTACT FOOTER (sides sticky, middle wider)
+        // =================================================================
+        float footerLeft   = 36f;
+        float footerRight  = 559f;
 
-        cs.appendRawCommands("q 21 0 0 21 100.21 205 cm /img3 Do Q\n");
+        // Fixed side columns
+        float sideColWidth = 150f;                      // narrower side columns
+        float leftColX     = footerLeft;
+        float rightColX    = footerRight - sideColWidth; // 409
+        float midLeftX     = footerLeft + sideColWidth;   // 186
+        float midRightX    = rightColX;                   // 409
+        float midWidth     = midRightX - midLeftX;        // 223
+
+        float col1Center   = leftColX + sideColWidth / 2f;          // Contact Us center
+        float col2Center   = midLeftX + midWidth / 2f;              // Branch Address center
+        float col3Center   = rightColX + sideColWidth / 2f;         // Branch Phone center
+
+        // Vertical dividers (between columns)
+        float divTop = 223f;
+        float divBottom = 167f;
+        cs.setLineWidth(1f);
+        cs.setStrokingColor(0.62353f, 0.63137f, 0.64314f);
+        // left divider
+        cs.moveTo(midLeftX, divTop);
+        cs.lineTo(midLeftX, divBottom);
+        cs.stroke();
+        // right divider
+        cs.moveTo(midRightX, divTop);
+        cs.lineTo(midRightX, divBottom);
+        cs.stroke();
+
+        // Icon size & position
+        float iconSize = 21f;
+        float iconY = 205f;   // bottom of icon
+
+        // ---- Column 1: Contact Us (same icon img3) ----
+        cs.appendRawCommands(String.format(Locale.US,
+                "q %.2f 0 0 %.2f %.2f %.2f cm /img3 Do Q\n", iconSize, iconSize,
+                col1Center - iconSize / 2f, iconY));
+
         cs.beginText();
-        cs.appendRawCommands("1 0 0 1 100.21 205 Tm\n");
-        cs.appendRawCommands("21 0 Td\n-21 0 Td\n");
+        cs.setFont(fonts.semiBold, 9);
+        String t1 = "Contact Us";
+        float t1X = centerAlign(t1, col1Center, fonts.semiBold, 9);
+        cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f 193 Tm\n", t1X));
+        cs.showText(t1);
         cs.endText();
 
         cs.beginText();
-        cs.appendRawCommands("1 0 0 1 89.92 193 Tm\n");
-        cs.setFont(fonts.regular, 9.12f);
-        cs.setNonStrokingColor(0f, 0f, 0f);
-        cs.showText("Contact Us");
-        cs.setNonStrokingColor(0f);
-        cs.appendRawCommands("1 0 0 1 83.96 181 Tm\n");
-        cs.setNonStrokingColor(0f, 0f, 0f);
-        cs.showText("1800 266 0811");
-        cs.setNonStrokingColor(0f);
-        cs.appendRawCommands("1 0 0 1 63.77 169 Tm\n");
-        cs.setNonStrokingColor(0f, 0f, 0f);
-        cs.showText("(local call charges apply)");
-        cs.setNonStrokingColor(0f);
-        cs.endText();
-
-        cs.appendRawCommands("q 21 0 0 21 361.71 205 cm /img5 Do Q\n");
-        cs.beginText();
-        cs.appendRawCommands("1 0 0 1 361.71 205 Tm\n");
-        cs.appendRawCommands("21 0 Td\n-21 0 Td\n");
+        cs.setFont(fonts.regular, 9);
+        String num1 = "1800 266 0811";
+        float num1X = centerAlign(num1, col1Center, fonts.regular, 9);
+        cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f 181 Tm\n", num1X));
+        cs.showText(num1);
         cs.endText();
 
         cs.beginText();
-        cs.appendRawCommands("1 0 0 1 342.87 193 Tm\n");
-        cs.setFont(fonts.regular, 9f);
-        cs.setNonStrokingColor(0f, 0f, 0f);
-        cs.showText("Branch Address");
-        cs.setNonStrokingColor(0f);
-        String branchAddress = stmt.details.branchAddress.replaceAll("\\s*\\R\\s*", " ");
-        List<String> addr = wrapText(branchAddress, 100);
-        float C_ADDR1 = 201.32f + (fonts.regular.getStringWidth("1st Floor, Shanti Point, Surat - Cloth Market (ring Road).,Surat, Surat-395002, Gujarat, India,")/1000f * 9f)/2;
-        float C_ADDR2 = 349.85f + (fonts.regular.getStringWidth("9099091998")/1000f * 9f)/2;
-        float addr1x = centerAlign(addr.get(0), C_ADDR1, fonts.regular, 9f);
-        cs.appendRawCommands(String.format("1 0 0 1 %.2f 181 Tm\n", addr1x));
-        cs.setNonStrokingColor(0f, 0f, 0f);
-        cs.showText(addr.get(0));
-        cs.setNonStrokingColor(0f);
-        if(addr.size() > 1){
-            float addr2x = centerAlign(addr.get(1), C_ADDR2, fonts.regular, 9f);
-            cs.appendRawCommands(String.format("1 0 0 1 %.2f 169 Tm\n", addr2x));
-            cs.setNonStrokingColor(0f, 0f, 0f);
-            cs.showText(addr.get(1));
-            cs.setNonStrokingColor(0f);
-            cs.endText();
-        } else {
+        cs.setFont(fonts.regular, 7);
+        String note = "(Toll-free number)";
+        float noteX = centerAlign(note, col1Center, fonts.regular, 7);
+        cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f 169 Tm\n", noteX));
+        cs.showText(note);
+        cs.endText();
+
+        // ---- Column 2: Branch Address (wider, icon img5) ----
+        cs.appendRawCommands(String.format(Locale.US,
+                "q %.2f 0 0 %.2f %.2f %.2f cm /img5 Do Q\n", iconSize, iconSize,
+                col2Center - iconSize / 2f, iconY));
+
+        cs.beginText();
+        cs.setFont(fonts.semiBold, 9);
+        String t2 = "Branch Address";
+        float t2X = centerAlign(t2, col2Center, fonts.semiBold, 9);
+        cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f 193 Tm\n", t2X));
+        cs.showText(t2);
+        cs.endText();
+
+        // Wrap and centre the branch address inside the wider column
+        float addrMaxWidth = midWidth - 20f;
+        String rawAddr = stmt.details.branchAddress.replaceAll("\\s*\\R\\s*", " ").trim();
+        List<String> addrLines = wrapTextByWidth(rawAddr, fonts.regular, 9f, addrMaxWidth);
+        float addrY = 181f;
+        float lineHeight = 9.31f;
+        for (int i = 0; i < addrLines.size(); i++) {
+            String line = addrLines.get(i);
+            float lineX = centerAlign(line, col2Center, fonts.regular, 9);
+            cs.beginText();
+            cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f %.2f Tm\n", lineX, addrY - i * lineHeight));
+            cs.setFont(fonts.regular, 9);
+            cs.showText(line);
             cs.endText();
         }
 
-        // Rounded rectangle background
+        // ---- Column 3: Branch Phone Number (same icon as Contact: img3) ----
+        cs.appendRawCommands(String.format(Locale.US,
+                "q %.2f 0 0 %.2f %.2f %.2f cm /img3 Do Q\n", iconSize, iconSize,
+                col3Center - iconSize / 2f, iconY));
+
+        cs.beginText();
+        cs.setFont(fonts.semiBold, 9);
+        String t3 = "Branch Phone Number";
+        float t3X = centerAlign(t3, col3Center, fonts.semiBold, 9);
+        cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f 193 Tm\n", t3X));
+        cs.showText(t3);
+        cs.endText();
+
+        cs.beginText();
+        cs.setFont(fonts.regular, 9);
+        String phone = (stmt.details.branchPhoneNo != null) ? stmt.details.branchPhoneNo : "";
+        float phoneX = centerAlign(phone, col3Center, fonts.regular, 9);
+        cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f 181 Tm\n", phoneX));
+        cs.showText(phone);
+        cs.endText();
+
+        // =================================================================
+        // END OF THREE-COLUMN CONTACT FOOTER
+        // =================================================================
+
+        // Rounded rectangle background (Remember! section)
         cs.saveGraphicsState();
         cs.setNonStrokingColor(0.91765f, 0.92157f, 0.92549f);
         cs.moveTo(46f, 86f);

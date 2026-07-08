@@ -8,7 +8,6 @@ import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import java.util.function.BiConsumer;
 
 import com.user.pdfservice.model.Statement;
 import com.user.pdfservice.model.Transaction;
@@ -29,6 +28,15 @@ public class SbiFirstPageHeaderEvent extends PdfPageEventHelper {
         private final Fonts fonts;
         private final Statement stmt;
 
+        public static final float EXTRA_TOP_GAP = 13.5f;
+        // Adjust this value to change the gap between the logo and the account details.
+        // Larger value → header starts lower → larger gap; smaller value → smaller gap.
+        private static final float HEADER_START_Y = 750f;
+
+        // Internal use only – can be removed, no external callers needed now.
+        private float headerEndY;
+        private float headerBottomY;
+
         public SbiFirstPageHeaderEvent(Fonts fonts, Statement stmt) {
                 this.fonts = fonts;
                 this.stmt = stmt;
@@ -40,7 +48,7 @@ public class SbiFirstPageHeaderEvent extends PdfPageEventHelper {
                         try {
                                 drawLogo(writer);
                                 addHeaderInfo(writer, fonts, stmt);
-                                addAccountStatement(writer, fonts, stmt);
+                                addAccountStatement(writer, fonts, stmt, headerEndY);
                         } catch (Exception e) {
                                 throw new RuntimeException("Error drawing SBI header", e);
                         }
@@ -60,12 +68,11 @@ public class SbiFirstPageHeaderEvent extends PdfPageEventHelper {
 
         private void drawLogo(PdfWriter writer) throws Exception {
                 PdfContentByte cb = writer.getDirectContent();
-
                 final int WIDTH = 242;
                 final int HEIGHT = 72;
-                final float SCALE = 0.75f;
-                final float LEFT = 36f;
-                final float TOP_Y = 806f;
+                final float SCALE = 0.70f;
+                final float LEFT = 50f;
+                final float TOP_Y = 801f;
 
                 byte[] rgb = Files.readAllBytes(Paths.get("image.rgb"));
                 byte[] alpha = Files.readAllBytes(Paths.get("smask.gray"));
@@ -76,7 +83,6 @@ public class SbiFirstPageHeaderEvent extends PdfPageEventHelper {
                 img.setTransparency(new int[] { 0, 0 });
 
                 PdfImage pdfImg = new PdfImage(img, "", null);
-
                 PdfDictionary calRgbDict = new PdfDictionary(PdfName.CALRGB);
                 calRgbDict.put(PdfName.GAMMA, new PdfArray(new float[] { 2.2f, 2.2f, 2.2f }));
                 calRgbDict.put(PdfName.WHITEPOINT, new PdfArray(new float[] { 0.95043f, 1f, 1.09f }));
@@ -85,11 +91,9 @@ public class SbiFirstPageHeaderEvent extends PdfPageEventHelper {
                         0.35758f, 0.71517f, 0.11919f,
                         0.18045f, 0.07218f, 0.9504f
                 }));
-
                 PdfArray calRgb = new PdfArray();
                 calRgb.add(PdfName.CALRGB);
                 calRgb.add(calRgbDict);
-
                 pdfImg.put(PdfName.COLORSPACE, calRgb);
                 pdfImg.put(PdfName.INTENT, PdfName.PERCEPTUAL);
                 pdfImg.put(PdfName.FILTER, PdfName.FLATEDECODE);
@@ -109,119 +113,186 @@ public class SbiFirstPageHeaderEvent extends PdfPageEventHelper {
         private void addHeaderInfo(PdfWriter writer, Fonts fonts, Statement stmt) {
                 PdfContentByte cb = writer.getDirectContent();
                 BaseFont bf = fonts.body.getBaseFont();
-                cb.setFontAndSize(bf, 9);
+                final float fontSize = 9f;
+                final float lineHeight = 13.5f;
+                final float leftMargin = 36f;
+                final float gap = 3f;
 
-                BiConsumer<Float, String> left = (y, text) -> {
-                        cb.beginText();
-                        cb.setTextMatrix(36f, y);
-                        cb.showText(text);
-                        cb.endText();
+                String[] allLabels = {
+                        "Account Name", "Address", "Date", "Account Number",
+                        "Account Description", "Branch", "Drawing Power",
+                        "Interest Rate(% p.a.)", "MOD Balance", "CIF No.",
+                        "CKYCR Number", "IFS Code", "MICR Code", "Nomination Registered"
                 };
-                BiConsumer<Float, String> right = (y, text) -> {
+                String balanceLabel = "Balance as on " + format(stmt.meta.statementPeriodStart);
+
+                float maxLabelW = 0f;
+                for (String lbl : allLabels) {
+                        float w = bf.getWidthPoint(lbl, fontSize);
+                        if (w > maxLabelW) maxLabelW = w;
+                }
+                float balLabelW = bf.getWidthPoint(balanceLabel, fontSize);
+                if (balLabelW > maxLabelW) maxLabelW = balLabelW;
+
+                float colonW = bf.getWidthPoint(":", fontSize);
+                // Base colon position – identical calculation as before
+                float defaultColonX = leftMargin + maxLabelW;
+
+                // Use HEADER_START_Y constant to control gap between logo and details
+                final float[] y = { HEADER_START_Y - EXTRA_TOP_GAP };
+
+                // Reusable method for drawing one row
+                java.util.function.Consumer<String> drawNote = (note) -> {
                         cb.beginText();
-                        cb.setTextMatrix(185.43f, y);
-                        cb.showText(text);
+                        cb.setFontAndSize(bf, fontSize);
+                        cb.setTextMatrix(leftMargin, y[0]);
+                        cb.showText(note);
                         cb.endText();
+                        y[0] -= lineHeight;
                 };
 
-                final float LINE = 13.5f;
-                float y = 738.5f;
+                // ------------------- ROWS -------------------
+                // Each call now supplies its own colon shift.
+                // Shift = 5f keeps the original PDF appearance unchanged.
 
-                left.accept(y, "Account Name");
-                right.accept(y, ":\t" + cleanValue(stmt.details.name));
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "Account Name", cleanValue(stmt.details.name), 5f);
 
-                left.accept(y, "Address");
-                String[] addr = stmt.details.address.split("\\r?\\n");
-                for (int i = 0; i < addr.length; i++) {
-                        if (addr[i] != null && !addr[i].isBlank()) {
-                                right.accept(y, (i == 0 ? ":\t" : " \t") + cleanValue(addr[i]));
-                                y -= LINE;
+                // Address splitting: now splits on both newlines and commas.
+                // Commas are removed and each part becomes a new line.
+                String[] addr = stmt.details.address != null
+                        ? stmt.details.address.split("[\\r\\n,]+")
+                        : new String[0];
+                String firstAddrLine = (addr.length > 0 && !addr[0].isBlank()) ? cleanValue(addr[0]) : "";
+                float addrValueX = drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "Address", firstAddrLine, 4f);
+
+                // Remaining address lines indented under the value column of the Address row
+                for (int i = 1; i < addr.length; i++) {
+                        String line = addr[i];
+                        if (line != null && !line.isBlank()) {
+                                cb.beginText();
+                                cb.setFontAndSize(bf, fontSize);
+                                cb.setTextMatrix(addrValueX, y[0]);
+                                cb.showText(cleanValue(line));
+                                cb.endText();
+                                y[0] -= lineHeight;
                         }
                 }
 
-                left.accept(y, "Date");
-                right.accept(y, ":\t" + format(stmt.meta.generatedAt));
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "Date", format(stmt.meta.generatedAt), 6f);
 
-                left.accept(y, "Account Number");
-                right.accept(y, ":\t" + cleanValue(
-                        String.format("%17s", stmt.details.accountNumber).replace(' ', '0')));
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "Account Number",
+                        cleanValue(String.format("%17s", stmt.details.accountNumber).replace(' ', '0')), 5f);
 
-                left.accept(y, "Account Description");
-                right.accept(y, ":\t" + cleanValue(stmt.details.accountType));
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "Account Description", cleanValue(stmt.details.accountType), 6f);
 
-                left.accept(y, "Branch");
-                right.accept(y, ":\t" + cleanValue(stmt.details.branch));
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "Branch", cleanValue(stmt.details.branch), 4f);
 
-                left.accept(y, "Drawing Power");
-                right.accept(y, ":\t0.00");
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "Drawing Power", "0.00", 5f);
 
-                left.accept(y, "Interest Rate(% p.a.)");
-                right.accept(y, ":\t2.5");
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "Interest Rate(% p.a.)", "2.5", 3f);
 
-                left.accept(y, "MOD Balance");
-                right.accept(y, ":\t0.00");
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "MOD Balance", "0.00", 5f);
 
-                left.accept(y, "CIF No.");
-                right.accept(y, ":\t" + cleanValue(stmt.details.customerRelNo));
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "CIF No.", cleanValue(stmt.details.customerRelNo), 5f);
 
-                left.accept(y, "CKYCR Number");
-                right.accept(y, ":\t" + (stmt.details.ckycr != null ? cleanValue(stmt.details.ckycr) : "NOT AVAILABLE"));
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "CKYCR Number",
+                        stmt.details.ckycr != null ? cleanValue(stmt.details.ckycr) : "NOT AVAILABLE", 14f);
 
-                left.accept(y, "IFS Code");
-                right.accept(y, ":\t" + cleanValue(stmt.details.ifsc));
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "IFS Code", cleanValue(stmt.details.ifsc), 5f);
+                drawNote.accept("(Indian Financial System)");
 
-                left.accept(y, "MICR Code");
-                right.accept(y, ":\t" + cleanValue(stmt.details.micr));
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "MICR Code", cleanValue(stmt.details.micr), 6f);
+                drawNote.accept("(Magnetic Ink Character Recognition)");
 
-                left.accept(y, "Nomination Registered");
-                right.accept(y, ":\tNo");
-                y -= LINE;
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        "Nomination Registered", "No", 4f);
 
                 BigDecimal openingBalance = computeOpeningBalance(stmt.transactions);
-                left.accept(y, "Balance as on " + format(stmt.meta.statementPeriodStart));
-                right.accept(y, ":\t" + formatAmount(openingBalance));
+                drawRow(cb, bf, fontSize, leftMargin, defaultColonX, colonW, gap, lineHeight, y,
+                        balanceLabel, formatAmount(openingBalance), 5f);
+
+                headerEndY = y[0];
         }
 
-        private void addAccountStatement(PdfWriter writer, Fonts fonts, Statement stmt) {
+        /**
+         * Draws a single header row (label : value).
+         *
+         * @param defaultColonX base x-position of the colon (leftMargin + max label width)
+         * @param colonShift    per‑row adjustment of the colon position (can be positive or negative)
+         * @return the x‑coordinate where the value was drawn (useful for continuation lines)
+         */
+        private float drawRow(PdfContentByte cb, BaseFont bf, float fontSize,
+                              float leftMargin, float defaultColonX, float colonW, float gap,
+                              float lineHeight, float[] y,
+                              String label, String value, float colonShift) {
+                float colonX = defaultColonX + colonShift;
+                float valueX = colonX + colonW + gap;
+
+                // Draw label
+                cb.beginText();
+                cb.setFontAndSize(bf, fontSize);
+                cb.setTextMatrix(leftMargin, y[0]);
+                cb.showText(label);
+                cb.endText();
+
+                // Draw colon
+                cb.beginText();
+                cb.setFontAndSize(bf, fontSize);
+                cb.setTextMatrix(colonX, y[0]);
+                cb.showText(":");
+                cb.endText();
+
+                // Draw value
+                cb.beginText();
+                cb.setFontAndSize(bf, fontSize);
+                cb.setTextMatrix(valueX, y[0]);
+                cb.showText(value);
+                cb.endText();
+
+                y[0] -= lineHeight;
+                return valueX;
+        }
+
+        private void addAccountStatement(PdfWriter writer, Fonts fonts, Statement stmt, float startY) {
                 PdfContentByte cb = writer.getDirectContent();
                 BaseFont bf = fonts.body.getBaseFont();
                 cb.beginText();
-                int addrLines = stmt.details.address.split("\\r?\n").length;
-                final float LINE = 13.5f;
-                final int BASE_ADDR_LINES = 4;
-                final float BASE_OFFSET = -243f;
-                float addrShift = (addrLines - BASE_ADDR_LINES) * LINE;
-                cb.moveText(36, 806);
-                cb.moveText(0, -54);
-                cb.moveText(0, BASE_OFFSET - addrShift);
-                cb.moveText(0, -18);
+
+                float yPos = startY - 0f;
+
+                cb.setTextMatrix(36, yPos);
                 cb.setFontAndSize(bf, 12);
                 cb.showText(" ");
-                cb.moveText(0, -18);
+                yPos -= 18f;
+                cb.setTextMatrix(36, yPos);
                 cb.showText("Account Statement from " + format(stmt.meta.statementPeriodStart) + " to " + format(stmt.meta.statementPeriodEnd));
-                cb.moveText(0, -18);
+                yPos -= 18f;
+                cb.setTextMatrix(36, yPos);
                 cb.showText(" ");
-                cb.moveText(0, -13.5f);
+                yPos -= 0f;
                 cb.setFontAndSize(bf, 9);
+                cb.setTextMatrix(36, yPos);
                 cb.showText("\t");
                 cb.endText();
+
+                headerBottomY = yPos;   // unused externally now
         }
 
         private static String cleanValue(String raw) {
                 if (raw == null) return "";
-                // remove any leading non-alphanumeric characters (like '&')
                 return raw.replaceFirst("^[^\\w\\s]+", "").trim();
         }
 

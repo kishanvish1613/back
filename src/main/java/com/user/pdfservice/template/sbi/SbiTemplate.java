@@ -171,7 +171,9 @@ public class SbiTemplate implements BankPdfTemplate {
                                 String dr = tx.debit == 0 ? "-" : formatIndianAmount(tx.debit);
                                 String cr = tx.credit == 0 ? "-" : formatIndianAmount(tx.credit);
                                 double safeBalance = Math.max(0.0, tx.balance);
-                                String ref = (tx.reference != null && !tx.reference.isBlank()) ? tx.reference : "-";
+
+                                // Always show "-" in the reference column for this template
+                                String ref = "-";
 
                                 y = drawTransactionRow(
                                         y,
@@ -539,14 +541,15 @@ public class SbiTemplate implements BankPdfTemplate {
                         drawText(X_DETAILS, firstNarrLineY - (i * LINE_GAP), narrationLines.get(i));
                 }
 
-                // Reference column – font size 5.5pt to fit long numbers
+                // Reference column – now properly centered
                 drawCell(X_REF_COL, rowTopY, W_REF_COL, rowHeight, true);
-                float refLeftX = X_REF_COL + 2f;
                 float refBlockHeight = (refCount - 1) * LINE_GAP;
                 float centerYref = rowTopY - (rowHeight / 2f);
                 float firstRefLineY = centerYref + (refBlockHeight / 2f) - 3.6f;
                 for (int i = 0; i < refCount; i++) {
-                        drawTextWithFontSize(refLeftX, firstRefLineY - (i * LINE_GAP), refLines.get(i), 5.5f);
+                        // Center each reference line horizontally
+                        float refX = centerAlignedX(refLines.get(i), X_REF_COL, W_REF_COL, 5.5f);
+                        drawTextWithFontSize(refX, firstRefLineY - (i * LINE_GAP), refLines.get(i), 5.5f);
                 }
 
                 // Debit, Credit, Balance

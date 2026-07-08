@@ -20,6 +20,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.*;
@@ -67,6 +69,7 @@ public class SbiNewTemplate implements BankPdfTemplate {
     private static final float PAGE_TXN_Y = 785f;
 
     private static final int MAX_NARRATION_LINES = 6;
+    private static final int MAX_ADDRESS_LINE_LENGTH = 35;   // characters per line before wrapping
 
     record Column(float x, float width) {}
 
@@ -80,11 +83,48 @@ public class SbiNewTemplate implements BankPdfTemplate {
             new Column(490f, 85f),
     };
 
+    // ======================== NEW HELPER METHOD ========================
+    /**
+     * Splits a long address string into multiple lines, each no longer than maxChars.
+     * It first splits on existing newlines, then for each piece longer than maxChars,
+     * it breaks at commas to keep sub‑lines within the limit.
+     */
+    private static List<String> wrapAddress(String address, int maxChars) {
+        if (address == null) address = "";
+        List<String> finalLines = new ArrayList<>();
+        String[] rawLines = address.split("\n");
+        for (String line : rawLines) {
+            line = line.trim();
+            if (line.isEmpty()) continue;
+            if (line.length() <= maxChars) {
+                finalLines.add(line);
+            } else {
+                // break at commas, reassemble into sub‑lines ≤ maxChars
+                String[] parts = line.split(",");
+                StringBuilder current = new StringBuilder();
+                for (String part : parts) {
+                    String candidate = current.length() > 0 ? current + "," + part : part;
+                    if (candidate.length() > maxChars && current.length() > 0) {
+                        finalLines.add(current.toString().trim());
+                        current.setLength(0);
+                        current.append(part.trim());
+                    } else {
+                        if (current.length() > 0) current.append(",");
+                        current.append(part.trim());
+                    }
+                }
+                if (current.length() > 0) finalLines.add(current.toString().trim());
+            }
+        }
+        // remove any blank lines that might have slipped through
+        return finalLines.stream().filter(l -> !l.isBlank()).collect(Collectors.toList());
+    }
+    // ====================================================================
+
     @Override
     public byte[] generate(Statement statement) {
         this.stmt = statement;
 
-        // ✅ LOCAL page counter – always starts at 1
         final int[] pageNo = {1};
 
         try (PDDocument doc = new PDDocument()) {
@@ -132,20 +172,30 @@ public class SbiNewTemplate implements BankPdfTemplate {
             float name_right_edge = 485.18f + (font.getStringWidth("Ved Prakash Patel") / 1000f) * 10f;
             float name_x = AlignXtoRight(stmt.details.name, font, name_right_edge, 10f);
 
-            String[] baddr = stmt.details.branchAddress.toUpperCase().split("\n");
-            String[] addr = stmt.details.address.split("\n");
-            String addrfont = addr.length == 3 ? "9" : "10";
+            // ----- Branch address wrapped to max 35 chars per line (first 3 lines used) -----
+            String branchAddressRaw = stmt.details.branchAddress != null
+                    ? stmt.details.branchAddress.toUpperCase()
+                    : "";
+            List<String> baddrWrapped = wrapAddress(branchAddressRaw, MAX_ADDRESS_LINE_LENGTH);
+            String baddr1 = baddrWrapped.size() > 0 ? baddrWrapped.get(0) : "";
+            String baddr2 = baddrWrapped.size() > 1 ? baddrWrapped.get(1) : "";
+            String baddr3 = baddrWrapped.size() > 2 ? baddrWrapped.get(2) : "";
+
+            // ----- Customer address wrapped to max 35 chars per line -----
+            String customerAddressRaw = stmt.details.address != null ? stmt.details.address : "";
+            List<String> addrWrapped = wrapAddress(customerAddressRaw, MAX_ADDRESS_LINE_LENGTH);
+            String addrfont = addrWrapped.size() == 3 ? "9" : "10";
             StringBuilder sb = new StringBuilder(
                     "1 0 0 1 67 680.65 Tm\n" +
                             "/F1 " + addrfont + " Tf\n" +
                             "0 0 0 rg\n" +
-                            "(" + pdfEscapeLiteral(addr[0]) + ")Tj\n" +
+                            "(" + pdfEscapeLiteral(addrWrapped.size() > 0 ? addrWrapped.get(0) : "") + ")Tj\n" +
                             "0 g\n");
             float addr_y = 670.17f;
-            for (int i = 1; i < addr.length; i++) {
+            for (int i = 1; i < addrWrapped.size(); i++) {
                 sb.append(String.format(Locale.ROOT,
                         "1 0 0 1 67 %.2f Tm\n0 0 0 rg\n(%s)Tj\n0 g\n",
-                        addr_y, pdfEscapeLiteral(addr[i])));
+                        addr_y, pdfEscapeLiteral(addrWrapped.get(i))));
                 addr_y -= 10.48f;
             }
 
@@ -160,12 +210,12 @@ public class SbiNewTemplate implements BankPdfTemplate {
                     Map.entry("BRANCH_PHONE", stmt.details.branchPhoneNo),
                     Map.entry("BRANCH_CODE", branchCode),
                     Map.entry("OPENING_BAL", formatIndianAmount(stmt.details.startingBalance) + "CR"),
-                    Map.entry("BADDRFONT", baddr.length == 3 ? "8.5" : "10"),
+                    Map.entry("BADDRFONT", baddrWrapped.size() == 3 ? "8.5" : "10"),
                     Map.entry("EMAIL", stmt.details.email == null ? "test@gmail.com" : stmt.details.email),
                     Map.entry("ADDRSTREAM", sb.toString()),
-                    Map.entry("BADDRL1", baddr[0]),
-                    Map.entry("BADDRL2", baddr[1]),
-                    Map.entry("BADDRL3", 2 < baddr.length ? baddr[2] : ""),
+                    Map.entry("BADDRL1", baddr1),
+                    Map.entry("BADDRL2", baddr2),
+                    Map.entry("BADDRL3", baddr3),
                     Map.entry("END_DATE", formatIsoInstantDate(stmt.meta.statementPeriodEnd)),
                     Map.entry("START_DATE", formatIsoInstantDate(stmt.meta.statementPeriodStart)),
                     Map.entry("CKYCR", stmt.details.ckycr != null ? stmt.details.ckycr : "Not Available"),
@@ -190,13 +240,13 @@ public class SbiNewTemplate implements BankPdfTemplate {
                         dr,
                         cr,
                         formatIndianAmount(safeBalance),
-                        pageNo      // pass counter
+                        pageNo
                 );
             }
             y = drawTableFooterAt(y);
             y -= 47f;
             drawStatementSummaryAt(pc, y, pageNo);
-            drawPageNo(pageNo);          // first page number
+            drawPageNo(pageNo);
             cs.close();
 
             doc.getDocumentCatalog().setViewerPreferences(null);
@@ -261,7 +311,7 @@ public class SbiNewTemplate implements BankPdfTemplate {
 
         if (rowBottomY < 124f) {
             drawTableFooterAt(rowTopY);
-            drawPageNo(pageNo);                     // draw current page number before new page
+            drawPageNo(pageNo);
             pc.nextPage();
             cs = pc.cs();
             cs.appendRawCommands("""
@@ -320,7 +370,7 @@ public class SbiNewTemplate implements BankPdfTemplate {
     private float drawStatementSummaryAt(PageCursor pc, float topY, int[] pageNo) throws Exception {
         float summaryHeight = 136.43f;
         if (topY - summaryHeight < 124f) {
-            drawPageNo(pageNo);                     // draw current page number before new page
+            drawPageNo(pageNo);
             pc.nextPage();
             cs = pc.cs();
             topY = 822f;
