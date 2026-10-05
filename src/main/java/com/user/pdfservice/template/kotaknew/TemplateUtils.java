@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -19,7 +20,15 @@ public final class TemplateUtils {
 
     public static String formatDateDMMMYYYY(String isoUtc) {
         if (isoUtc == null || isoUtc.isBlank()) return "";
-        return DATE_D_MMM_YYYY.format(Instant.parse(isoUtc));
+        try {
+            if (isoUtc.length() >= 10 && isoUtc.charAt(4) == '-' && isoUtc.charAt(7) == '-') {
+                LocalDate ld = LocalDate.parse(isoUtc.substring(0, 10));
+                return ld.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH));
+            }
+            return DATE_D_MMM_YYYY.format(Instant.parse(isoUtc));
+        } catch (Exception e) {
+            return isoUtc;
+        }
     }
 
     private static final DateTimeFormatter D_MMM_YYYY_HH_MM =

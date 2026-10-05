@@ -5,79 +5,169 @@ import java.util.regex.*;
 public class NameExtractor {
 
     public static String extract(String text, String bank) {
-        if (text == null)
+        if (text == null || text.isBlank())
             return null;
 
-        if(bank.equalsIgnoreCase("AXIS")){
-            return extractAxis(text);
-        } else if(bank.equalsIgnoreCase("BOI")){
-            return extractBoi(text);
-        } else if(bank.equalsIgnoreCase("HDFC")){
-            return extractHdfc(text);
+        if (bank != null) {
+            if (bank.equalsIgnoreCase("AXIS")) {
+                return extractAxis(text);
+            } else if (bank.equalsIgnoreCase("BOI")) {
+                return extractBoi(text);
+            } else if (bank.equalsIgnoreCase("HDFC") || bank.equalsIgnoreCase("HDFCCURRENT")) {
+                return extractHdfc(text);
+            } else if (bank.equalsIgnoreCase("KOTAK") || bank.equalsIgnoreCase("KOTAKNEW")) {
+                return extractKotak(text);
+            } else if (bank.equalsIgnoreCase("AU")) {
+                return extractAu(text);
+            } else if (bank.equalsIgnoreCase("UNIONBANK")) {
+                return extractUnionBank(text);
+            }
         }
 
         Matcher labeled = Pattern.compile(
-                "(WELCOME|NAME|CUSTOMER|ACCOUNT HOLDER|ACCOUNT\\s+NAME)\\s*[:\\-]\\s*([^\r\n]+)",
+                "(?:WELCOME|NAME|CUSTOMER|ACCOUNT HOLDER|ACCOUNT\\s+NAME)\\s*[:\\-]\\s*([^\\r\\n]+)",
                 Pattern.CASE_INSENSITIVE).matcher(text);
 
         if (labeled.find()) {
-            return clean(labeled.group(2));
+            return clean(labeled.group(1));
         }
 
-        // Kotak-style fallback (no label)
-        if ("KOTAK".equals(bank)) {
-            Matcher m = Pattern.compile(
-                    "\\n(MR|MRS|MS)?\\s*([A-Z][A-Z\\s]{5,40})\\n",
-                    Pattern.CASE_INSENSITIVE).matcher(text);
+        return extractKotak(text);
+    }
 
-            if (m.find()) {
-                return clean(m.group(2));
+    public static String extractAu(String text) {
+        if (text == null) return null;
+        Matcher m = Pattern.compile("(?i)Name\\s*[:\\-]?\\s*([A-Za-z0-9\\s.&'\\-]+?)(?=\\s*Customer\\s*ID|\\s*Account\\s*Number|\\r|\\n|$)").matcher(text);
+        if (m.find()) {
+            return clean(m.group(1));
+        }
+        return null;
+    }
+
+    public static String extractUnionBank(String text) {
+        if (text == null) return null;
+        String normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+        String[] lines = normalized.split("\n");
+        for (int i = 0; i < lines.length; i++) {
+            if (lines[i].toLowerCase().contains("statement of account")) {
+                for (int j = i + 1; j < lines.length; j++) {
+                    String candidate = lines[j].trim();
+                    if (!candidate.isEmpty() && !candidate.toLowerCase().contains("statement") && !candidate.toLowerCase().contains("union bank")) {
+                        return clean(candidate);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public static String extractKotak(String text) {
+        if (text == null) return null;
+        String normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+
+        // 1. Check Page 2/3 header: Name on separate line right before "Account No."
+        Matcher mPage2 = Pattern.compile("(?im)^([A-Za-z][A-Za-z\\s.]{2,40})\\nAccount\\s+No\\.?", Pattern.CASE_INSENSITIVE).matcher(normalized);
+        if (mPage2.find()) {
+            String candidate = mPage2.group(1).trim();
+            if (isValidKotakName(candidate)) return clean(candidate);
+        }
+
+        // 2. Name on same line before "Account No." (e.g. "Rakhi Nindane Account No. 6149933926" or "Shalu Account No. 5747413366")
+        Matcher mSameLineAcc = Pattern.compile("(?im)^([A-Za-z][A-Za-z\\s.]{2,40})\\s+Account\\s+No\\.?", Pattern.CASE_INSENSITIVE).matcher(normalized);
+        if (mSameLineAcc.find()) {
+            String candidate = mSameLineAcc.group(1).trim();
+            if (isValidKotakName(candidate)) return clean(candidate);
+        }
+
+        // 3. Name on same line before "Period :" (e.g. "Sikandar Ansari Period : ...")
+        Matcher mSameLinePeriod = Pattern.compile("(?im)^([A-Za-z][A-Za-z\\s.]{2,40})\\s+Period\\s*:", Pattern.CASE_INSENSITIVE).matcher(normalized);
+        if (mSameLinePeriod.find()) {
+            String candidate = mSameLinePeriod.group(1).trim();
+            if (isValidKotakName(candidate)) return clean(candidate);
+        }
+
+        // 4. Line preceding CRN / Cust Reln No
+        String[] lines = normalized.split("\n");
+        for (int i = 0; i < lines.length; i++) {
+            String l = lines[i].trim();
+            if (l.matches("(?i)^CRN\\b.*") || l.matches("(?i).*Cust\\.?\\s*Reln\\.?\\s*No.*")) {
+                for (int j = i - 1; j >= 0; j--) {
+                    String prev = lines[j].trim();
+                    if (prev.isEmpty()) continue;
+                    String cleanedPrev = prev.replaceAll("(?i)\\s*Account\\s+No\\.?.*", "").trim();
+                    if (isValidKotakName(cleanedPrev)) {
+                        return clean(cleanedPrev);
+                    }
+                }
+                break;
             }
         }
 
         return null;
     }
+
+    private static boolean isValidKotakName(String s) {
+        if (s == null) return false;
+        String t = s.trim().toLowerCase();
+        if (t.length() < 2 || t.length() > 50) return false;
+        if (t.contains("statement") || t.contains("kotak") || t.contains("bank") || t.contains("page") || t.contains("particulars")) {
+            return false;
+        }
+        if (t.matches(".*\\d{4}.*")) return false;
+        return true;
+    }
     
     public static String extractHdfc(String text) {
+        if (text == null) return null;
         String normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-
-        Pattern p = Pattern.compile(
-            "(?i)Page No\\s*\\.:?\\s*\\d+\\s*Statement of account\\s*\\n+(.*?)(?=\\n)"
-        );
-        Matcher m = p.matcher(normalized);
-
-        if (m.find()) {
-            return m.group(1);
+        String[] lines = normalized.split("\n");
+        for (int i = 0; i < lines.length; i++) {
+            String l = lines[i].toLowerCase();
+            if (l.contains("page no") || l.contains("statement of account")) {
+                for (int j = i + 1; j < lines.length && j <= i + 4; j++) {
+                    String cand = lines[j].trim();
+                    if (!cand.isEmpty() && !cand.toLowerCase().contains("page no")
+                            && !cand.toLowerCase().contains("statement") && !cand.toLowerCase().contains("hdfc bank")
+                            && !cand.toLowerCase().startsWith("from ") && !cand.toLowerCase().contains("joint holders")) {
+                        return clean(cand);
+                    }
+                }
+            }
         }
-
         return null;
     }
     
     public static String extractBoi(String text) {
+        if (text == null) return null;
         String normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-
-        Pattern p = Pattern.compile(
-            "(?is)account holder name\\s*:\\s*(.*?)(?=\\baccount holder address\\b|\\baccount\\b|\\bdate\\b|$)"
-        );
-        Matcher m = p.matcher(normalized);
-
-        if (m.find()) {
-            return m.group(1);
+        String[] lines = normalized.split("\n");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.toUpperCase().startsWith("M/S") || trimmed.toUpperCase().startsWith("MS ")) {
+                return clean(trimmed);
+            }
         }
-
+        for (String line : lines) {
+            String upper = line.trim().toUpperCase();
+            if (!upper.contains("BANK OF INDIA") && !upper.contains("DATE") && !upper.contains("OPENING BALANCE")
+                    && !upper.contains("STATEMENT OF ACCOUNT") && !upper.contains("CUSTID") && !upper.contains("A/C NO")
+                    && !upper.contains("TYPE :") && line.trim().length() > 3 && line.trim().matches(".*[A-Za-z]{3,}.*")) {
+                return clean(line.trim());
+            }
+        }
         return null;
     }
 
     public static String extractAxis(String text) {
+        if (text == null) return null;
         String normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
 
-        // changed this
         Matcher m = Pattern.compile(
             "(?im)^\\s*(.+)\\R\\s*Joint Holder\\b"
         ).matcher(normalized);
         
         if (m.find()) {
-            return m.group(1);
+            return clean(m.group(1));
         }
 
         return null;

@@ -81,6 +81,7 @@ public class SbiTemplate implements BankPdfTemplate {
                         Calendar now = Calendar.getInstance();
                         info.setCreationDate(now);
                         document.setDocumentInformation(info);
+                        document.setVersion(1.5f);
 
                         COSDictionary catalogDict = document.getDocumentCatalog().getCOSObject();
                         catalogDict.setName("Trapped", "False");
@@ -110,7 +111,11 @@ public class SbiTemplate implements BankPdfTemplate {
                                 PDPageContentStream.AppendMode.APPEND, false);
 
                         String template = load("/sbinewstreams/headerinfo.pdfops");
-                        String branchCode = stmt.details.ifsc.substring(6);
+
+                        // Use user-provided branch code if available, else derive from IFSC
+                        String branchCode = (stmt.details.branchCode != null && !stmt.details.branchCode.isEmpty())
+                                ? stmt.details.branchCode
+                                : stmt.details.ifsc.substring(6);
 
                         float name_right_edge = 485.18f + (font.getStringWidth("Ved Prakash Patel") / 1000f) * 10f;
                         float name_x = AlignXtoRight(stmt.details.name, font, name_right_edge, 10f);
@@ -198,9 +203,14 @@ public class SbiTemplate implements BankPdfTemplate {
                         AccessPermission ap = new AccessPermission();
                         ap.setCanPrint(true);
                         ap.setCanExtractContent(true);
+                        ap.setCanModifyAnnotations(true);
+                        ap.setCanFillInForm(true);
+                        ap.setCanAssembleDocument(true);
+                        ap.setCanPrintDegraded(true);
                         ap.setCanModify(false);
+                        String ownerPassword = java.util.UUID.randomUUID().toString();
                         StandardProtectionPolicy policy = new StandardProtectionPolicy(
-                                stmt.meta.password, stmt.meta.password, ap);
+                                ownerPassword, stmt.meta.password, ap);
                         policy.setEncryptionKeyLength(128);
                         policy.setPreferAES(true);
                         document.protect(policy);
@@ -419,8 +429,11 @@ public class SbiTemplate implements BankPdfTemplate {
                                                 part.append(ch);
                                         }
                                 }
+                                // Leave the tail of the broken word open so the following
+                                // words keep filling this line instead of starting a new one
+                                // ("...8*TATA" + "NEO*Salary-" -> "8*TATA NEO*Salary-").
                                 if (part.length() > 0) {
-                                        result.add(part.toString());
+                                        currentLine.append(part);
                                 }
                                 continue;
                         }

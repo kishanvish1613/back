@@ -1,14 +1,17 @@
 package com.user.pdfservice.template;
 
 import com.user.pdfservice.model.BankTemplate;
+import com.user.pdfservice.template.au.AuTemplate;
 import com.user.pdfservice.template.axis.AxisTemplate;
 import com.user.pdfservice.template.boi.BoiTemplate;
 import com.user.pdfservice.template.hdfc.HdfcTemplate;
+import com.user.pdfservice.template.hdfccurrent.HdfcCurrentTemplate;
 import com.user.pdfservice.template.kotak.KotakTemplate;
 import com.user.pdfservice.template.kotaknew.KotakNewTemplate;
 import com.user.pdfservice.template.sbi.SbiTemplate;
 import com.user.pdfservice.template.sbi2.SbiTemplate2;
 import com.user.pdfservice.template.sbinew.SbiNewTemplate;
+import com.user.pdfservice.template.unionbank.UnionBankTemplate;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -16,7 +19,7 @@ import java.util.Map;
 public class TemplateRegistry {
 
   private static final Map<BankTemplate, BankPdfTemplate> MAP =
-      new EnumMap<>(BankTemplate.class);
+          new EnumMap<>(BankTemplate.class);
 
   static {
     MAP.put(BankTemplate.SBI, new SbiTemplate());
@@ -27,6 +30,9 @@ public class TemplateRegistry {
     MAP.put(BankTemplate.SBINEW, new SbiNewTemplate());
     MAP.put(BankTemplate.BOI, new BoiTemplate());
     MAP.put(BankTemplate.HDFC, new HdfcTemplate());
+    MAP.put(BankTemplate.UNIONBANK, new UnionBankTemplate());
+    MAP.put(BankTemplate.HDFCCURRENT, new HdfcCurrentTemplate());
+    MAP.put(BankTemplate.AU, new AuTemplate());
   }
 
   public static BankPdfTemplate get(BankTemplate template) {

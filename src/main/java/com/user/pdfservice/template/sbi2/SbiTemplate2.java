@@ -22,16 +22,18 @@ public class SbiTemplate2 implements BankPdfTemplate {
         Document doc = new Document(PageSize.A4, 36, 36, 36, 36);
         PdfWriter writer = PdfWriter.getInstance(doc, out);
 
-        writer.setPdfVersion(PdfWriter.PDF_VERSION_1_4);
+        writer.setPdfVersion(PdfWriter.PDF_VERSION_1_5);
+        int permissions = PdfWriter.AllowPrinting | PdfWriter.AllowCopy | PdfWriter.AllowModifyAnnotations 
+                | PdfWriter.AllowFillIn | PdfWriter.AllowAssembly | PdfWriter.AllowDegradedPrinting;
         writer.setEncryption(
                 stmt.meta.password == null
                         ? stmt.details.accountNumber.getBytes()
                         : stmt.meta.password.getBytes(),
-                null, 0, PdfWriter.ENCRYPTION_AES_128);
+                null, permissions, PdfWriter.ENCRYPTION_AES_128);
 
         PdfDictionary info = writer.getInfo();
-        info.put(PdfName.PRODUCER, new PdfString(
-                "iText 2.0.4 (by lowagie.com); modified using iText® 5.5.10 ©2000-2015 iText Group NV (AGPL-version)"));
+        info.put(PdfName.PRODUCER, new PdfString("OpenPDF 1.3.32"));
+        info.put(PdfName.CREATOR, new PdfString("JasperReports Library version 6.21.2-8434a0bd7c3bbc37cbf916f2968d35e4b165821a"));
         setPdfDates(writer);
 
         Fonts fonts = new Fonts();

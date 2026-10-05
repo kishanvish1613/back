@@ -169,11 +169,10 @@ public class PageCursor {
         PDActionURI action = new PDActionURI();
         action.setURI(url);
         link.setAction(action);
-        link.setBorderStyle(null);
-        link.setColor(
-            new PDColor(new float[] { 0f, 0f, 1f }, PDDeviceRGB.INSTANCE)
-        );
-        link.setPrinted(true);
+        org.apache.pdfbox.pdmodel.interactive.annotation.PDBorderStyleDictionary bs =
+                new org.apache.pdfbox.pdmodel.interactive.annotation.PDBorderStyleDictionary();
+        bs.setWidth(0);
+        link.setBorderStyle(bs);
 
         page.getAnnotations().add(link);
     }

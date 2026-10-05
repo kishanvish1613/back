@@ -9,5 +9,4 @@ class PdfserviceApplicationTests {
 	@Test
 	void contextLoads() {
 	}
-
 }

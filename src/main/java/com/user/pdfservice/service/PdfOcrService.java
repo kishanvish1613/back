@@ -20,18 +20,35 @@ import net.sourceforge.tess4j.Tesseract;
 @Service
 public class PdfOcrService {
 
-    private static final String TESSDATA_PATH =
-            "C:\\Program Files\\Tesseract-OCR\\tessdata";
-
-    private final Tesseract tesseract;
+    private Tesseract tesseract;
 
     public PdfOcrService() {
-        this.tesseract = new Tesseract();
-        this.tesseract.setDatapath(TESSDATA_PATH);
-        this.tesseract.setLanguage("eng");
-
-        this.tesseract.setOcrEngineMode(1); // LSTM
-        this.tesseract.setPageSegMode(3);   // Auto
+        try {
+            this.tesseract = new Tesseract();
+            String tessPath = System.getenv("TESSDATA_PREFIX");
+            if (tessPath == null || tessPath.isBlank() || !new java.io.File(tessPath).exists()) {
+                String[] possiblePaths = {
+                    "C:\\Program Files\\Tesseract-OCR\\tessdata",
+                    "C:\\Program Files (x86)\\Tesseract-OCR\\tessdata",
+                    System.getProperty("user.home") + "\\AppData\\Local\\Tesseract-OCR\\tessdata"
+                };
+                for (String p : possiblePaths) {
+                    if (new java.io.File(p).exists()) {
+                        tessPath = p;
+                        break;
+                    }
+                }
+            }
+            if (tessPath != null && new java.io.File(tessPath).exists()) {
+                this.tesseract.setDatapath(tessPath);
+            }
+            this.tesseract.setLanguage("eng");
+            this.tesseract.setOcrEngineMode(1); // LSTM
+            this.tesseract.setPageSegMode(3);   // Auto
+        } catch (Throwable t) {
+            System.err.println("Warning: Tesseract initialization deferred/skipped: " + t.getMessage());
+            this.tesseract = null;
+        }
     }
 
     /* ===================== PDF OCR ===================== */
@@ -39,45 +56,57 @@ public class PdfOcrService {
     public String extractTextFromPdf(byte[] pdfBytes, String password) throws Exception {
 
         try (PDDocument document = PDDocument.load(pdfBytes, password)) {
-
-            PDFTextStripper stripper = new PDFTextStripper();
             int totalPages = document.getNumberOfPages();
-            int endPage = 1;
-            if(totalPages > 1) endPage += 1;
-            if(totalPages > 2) endPage += 1;
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
 
+            // Extract pages 1 and 2 (Header & Details)
             stripper.setStartPage(1);
-            stripper.setEndPage(endPage);
+            stripper.setEndPage(Math.min(2, totalPages));
+            String headerText = stripper.getText(document);
 
-            String directText = stripper.getText(document);
-            if (directText != null && directText.trim().length() > 200) {
+            // Also extract the final page if multi-page (for closing summary balances)
+            String lastPageText = "";
+            if (totalPages > 2) {
+                PDFTextStripper lastStripper = new PDFTextStripper();
+                lastStripper.setSortByPosition(true);
+                lastStripper.setStartPage(totalPages);
+                lastStripper.setEndPage(totalPages);
+                lastPageText = lastStripper.getText(document);
+            }
+
+            String directText = headerText + "\n--- LAST PAGE ---\n" + lastPageText;
+            if (directText != null && directText.trim().length() > 50) {
                 return directText;
             }
 
-            // OCR fallback
+            // OCR fallback for scanned image PDFs
+            if (tesseract == null) {
+                return directText != null ? directText : "";
+            }
+
             PDFRenderer renderer = new PDFRenderer(document);
             StringBuilder result = new StringBuilder();
 
             Set<Integer> pagesToOcr = new LinkedHashSet<>();
             pagesToOcr.add(0); // first page
-
             if (totalPages > 1) {
                 pagesToOcr.add(totalPages - 1); // last page
-            } else if(totalPages > 2){
-                pagesToOcr.add(totalPages - 2);
             }
 
             for (int pageIndex : pagesToOcr) {
-                BufferedImage image =
-                        renderer.renderImageWithDPI(pageIndex, 300);
+                try {
+                    BufferedImage image = renderer.renderImageWithDPI(pageIndex, 300);
+                    BufferedImage processed = preprocessImage(image);
+                    String text = tesseract.doOCR(processed);
 
-                BufferedImage processed = preprocessImage(image);
-                String text = tesseract.doOCR(processed);
-
-                result.append("\n--- Page ")
-                      .append(pageIndex + 1)
-                      .append(" ---\n")
-                      .append(text);
+                    result.append("\n--- Page ")
+                          .append(pageIndex + 1)
+                          .append(" ---\n")
+                          .append(text);
+                } catch (Throwable ocrEx) {
+                    System.err.println("Warning: OCR on page " + (pageIndex + 1) + " failed: " + ocrEx.getMessage());
+                }
             }
 
             return result.toString();
@@ -87,10 +116,11 @@ public class PdfOcrService {
     /* ===================== IMAGE OCR ===================== */
 
     public String extractTextFromImage(byte[] imageBytes) throws Exception {
+        if (tesseract == null) {
+            throw new IllegalStateException("Tesseract OCR engine is not configured on the server");
+        }
 
-        BufferedImage image =
-                ImageIO.read(new ByteArrayInputStream(imageBytes));
-
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
         if (image == null) {
             throw new IllegalArgumentException("Invalid image file");
         }

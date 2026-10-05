@@ -3,8 +3,11 @@ package com.user.pdfservice.controller;
 import com.user.pdfservice.generator.PdfGenerator;
 import com.user.pdfservice.model.SampleStatements;
 import com.user.pdfservice.model.Statement;
+import com.user.pdfservice.model.entity.StatementRecord;
+import com.user.pdfservice.service.AdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
@@ -27,16 +31,57 @@ public class PdfController {
 
   private final ObjectMapper mapper = new ObjectMapper();
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+  private final AdminService adminService;
+
+  public PdfController(AdminService adminService) {
+    this.adminService = adminService;
+  }
 
   /**
    * Generate a bank statement PDF (possibly password‑protected) and return it
    * with an appropriate filename.
    */
   @PostMapping("/pdf")
-  public ResponseEntity<byte[]> createPdf(@RequestBody Statement statement) throws Exception {
+  public ResponseEntity<byte[]> createPdf(@RequestBody Statement statement, HttpServletRequest request) throws Exception {
 
     System.out.println(">>> Generating PDF for template: " + statement.meta.template);
     System.out.println(">>> Statement opening balance: " + statement.details.startingBalance);
+
+    // If Admin enabled storing normal user data, record this generated statement into MongoDB
+    try {
+      if (adminService.isStoreUserDataEnabled()) {
+        String username = (String) request.getAttribute("username");
+        if (username == null || username.trim().isEmpty()) {
+          username = "Normal User";
+        }
+
+        StatementRecord record = new StatementRecord();
+        record.setUsername(username);
+        record.setBankTemplate(statement.meta != null && statement.meta.template != null ? statement.meta.template.toString() : "UNKNOWN");
+        record.setAccountNumber(statement.details != null ? statement.details.accountNumber : "");
+        record.setCustomerName(statement.details != null ? statement.details.name : "");
+        double openingBal = statement.details != null ? statement.details.startingBalance : 0.0;
+        double closingBal = openingBal;
+        int totalTxns = 0;
+        if (statement.transactions != null && !statement.transactions.isEmpty()) {
+          totalTxns = statement.transactions.size();
+          closingBal = statement.transactions.get(totalTxns - 1).balance;
+        }
+
+        record.setOpeningBalance(openingBal);
+        record.setClosingBalance(closingBal);
+        record.setTotalTransactions(totalTxns);
+        record.setStartDate(statement.meta != null ? statement.meta.statementPeriodStart : "");
+        record.setEndDate(statement.meta != null ? statement.meta.statementPeriodEnd : "");
+        record.setGeneratedAt(LocalDateTime.now());
+        record.setStatementJson(mapper.writeValueAsString(statement));
+
+        adminService.saveStatementRecord(record);
+        System.out.println(">>> [Audit] Archived statement record for user: " + username);
+      }
+    } catch (Exception ex) {
+      System.err.println(">>> [Audit] Warning: could not store statement record: " + ex.getMessage());
+    }
 
     // 🔒 Save the lock password (if any) and clear it so the template NEVER encrypts
     String lockPassword = statement.meta.password;
@@ -63,11 +108,6 @@ public class PdfController {
     }
 
     System.out.println(">>> Generated filename: " + filename);
-
-    try {
-      String json = mapper.writeValueAsString(statement.meta);
-      System.out.println(">>> Statement metadata: " + json);
-    } catch (Exception ignored) {}
 
     return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
@@ -107,7 +147,7 @@ public class PdfController {
   @GetMapping("/pdf/templates")
   public ResponseEntity<List<String>> getSupportedTemplates() {
     List<String> templates = Arrays.asList(
-            "SBINEW", "SBI", "SBI2", "KOTAKNEW", "KOTAK", "AXIS", "BOI", "HDFC"
+            "UNIONBANK", "SBINEW", "SBI", "SBI2", "KOTAKNEW", "KOTAK", "AXIS", "BOI", "HDFC"
     );
     return ResponseEntity.ok(templates);
   }

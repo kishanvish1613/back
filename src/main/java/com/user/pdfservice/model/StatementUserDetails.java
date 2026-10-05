@@ -3,7 +3,7 @@ package com.user.pdfservice.model;
 public class StatementUserDetails {
   public String title;
   public String name;
-  public String fullName;        // used by some templates
+  public String fullName;
   public String accountNumber;
   public String ifsc;
   public double startingBalance;
@@ -22,8 +22,15 @@ public class StatementUserDetails {
   public String customerRelNo;
   public String pan;
   public String cykr;
-  public String ckycr;          // ← added (CKYCR number / "Not Available")
-  public String accountType;    // already present
-  public String password;       // if needed for templates
-  public String branchLocation; // branch location (e.g., "BAWADIYA KALAN, BHOPAL")
+  public String ckycr;
+  public String accountType;
+  public String password;
+  public String branchLocation;
+  public String branchCode;
+
+  // --- new fields ---
+  public String branchEmail;   // Branch Email ID
+  public String crn;           // CRN (Kotak)
+  public String nomineeName;   // Nominee Name
+  public String customerType;  // Customer Type (e.g. Sole Propertary)
 }

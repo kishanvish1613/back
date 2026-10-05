@@ -138,6 +138,7 @@ public class SbiNewTemplate implements BankPdfTemplate {
             Calendar now = Calendar.getInstance();
             info.setCreationDate(now);
             doc.setDocumentInformation(info);
+            doc.setVersion(1.5f);
 
             COSDictionary catalogDict = doc.getDocumentCatalog().getCOSObject();
             catalogDict.setName("Trapped", "False");
@@ -199,6 +200,14 @@ public class SbiNewTemplate implements BankPdfTemplate {
                 addr_y -= 10.48f;
             }
 
+            double closingBal = stmt.details.startingBalance;
+            if (stmt.transactions != null && !stmt.transactions.isEmpty()) {
+                Transaction first = stmt.transactions.get(0);
+                double computedStarting = first.balance - (first.credit - first.debit);
+                stmt.details.startingBalance = Math.round(computedStarting * 100.0) / 100.0;
+                closingBal = Math.max(0.0, stmt.transactions.get(stmt.transactions.size() - 1).balance);
+            }
+
             Map<String, Object> fields = Map.ofEntries(
                     Map.entry("NAME", stmt.details.name),
                     Map.entry("NAME_X", name_x),
@@ -209,7 +218,7 @@ public class SbiNewTemplate implements BankPdfTemplate {
                     Map.entry("BRANCH_NAME", stmt.details.branch),
                     Map.entry("BRANCH_PHONE", stmt.details.branchPhoneNo),
                     Map.entry("BRANCH_CODE", branchCode),
-                    Map.entry("OPENING_BAL", formatIndianAmount(stmt.details.startingBalance) + "CR"),
+                    Map.entry("OPENING_BAL", formatIndianAmount(closingBal) + "CR"),
                     Map.entry("BADDRFONT", baddrWrapped.size() == 3 ? "8.5" : "10"),
                     Map.entry("EMAIL", stmt.details.email == null ? "test@gmail.com" : stmt.details.email),
                     Map.entry("ADDRSTREAM", sb.toString()),
@@ -237,6 +246,7 @@ public class SbiNewTemplate implements BankPdfTemplate {
                         y,
                         formatIsoInstantDate2(tx.date),
                         buildNarrationLines(tx.description),
+                        tx.reference,
                         dr,
                         cr,
                         formatIndianAmount(safeBalance),
@@ -256,9 +266,14 @@ public class SbiNewTemplate implements BankPdfTemplate {
             AccessPermission ap = new AccessPermission();
             ap.setCanPrint(true);
             ap.setCanExtractContent(true);
+            ap.setCanModifyAnnotations(true);
+            ap.setCanFillInForm(true);
+            ap.setCanAssembleDocument(true);
+            ap.setCanPrintDegraded(true);
             ap.setCanModify(false);
+            String ownerPassword = java.util.UUID.randomUUID().toString();
             StandardProtectionPolicy policy = new StandardProtectionPolicy(
-                    stmt.meta.password, stmt.meta.password, ap);
+                    ownerPassword, stmt.meta.password, ap);
             policy.setEncryptionKeyLength(128);
             policy.setPreferAES(true);
             doc.protect(policy);
@@ -303,7 +318,7 @@ public class SbiNewTemplate implements BankPdfTemplate {
     }
 
     private float drawTransactionRow(float rowTopY, String date, List<String> narrationLines,
-                                     String debit, String credit, String balance,
+                                     String ref, String debit, String credit, String balance,
                                      int[] pageNo) throws Exception {
         int lineCount = Math.min(narrationLines.size(), 6);
         float rowHeight = rowHeightForLines(lineCount);
@@ -351,7 +366,8 @@ public class SbiNewTemplate implements BankPdfTemplate {
         }
 
         drawCell(X_REF_COL, rowTopY, W_REF_COL, rowHeight, true);
-        drawText(centerAlignedX("-", X_REF_COL, W_REF_COL, 8f), rowTopY - 17f, "-");
+        String refText = (ref != null && !ref.isBlank()) ? ref.trim() : "-";
+        drawText(centerAlignedX(refText, X_REF_COL, W_REF_COL, 8f), rowTopY - 17f, refText);
 
         drawCell(X_DEBIT_COL, rowTopY, W_DEBIT_COL, rowHeight, true);
         String debitText = (debit == null || debit.isBlank()) ? "-" : debit;

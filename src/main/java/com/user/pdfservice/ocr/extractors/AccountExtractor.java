@@ -5,23 +5,30 @@ import java.util.regex.*;
 public class AccountExtractor {
 
     public static String extract(String text, String bank) {
-        if (bank == null) {
-            return longestDigitSequence(text);
-        }
+        if (text == null || text.isBlank()) return null;
 
-        if (bank.equalsIgnoreCase("SBI") || bank.equalsIgnoreCase("SBINEW")) {
+        if (bank != null && (bank.equalsIgnoreCase("SBI") || bank.equalsIgnoreCase("SBINEW"))) {
             return extractSbiAccount(text);
         }
 
-        // Fallback for other banks
+        // 1. Explicit Account Number labels
         Matcher labeled = Pattern.compile(
-                "ACCOUNT\\s*(NO|NUMBER|NO.)?\\s*[:\\-]?\\s*([\\d\\s]{9,20})",
+                "(?:ACCOUNT\\s*(?:NO\\.?|NUMBER)?|A/C\\s*(?:NO\\.?|NUMBER)?)\\s*[:\\-]?\\s*([\\d\\s]{9,20})",
                 Pattern.CASE_INSENSITIVE).matcher(text);
-
         if (labeled.find()) {
-            return labeled.group(2).replaceAll("\\s+", "");
+            String acc = labeled.group(1).replaceAll("\\s+", "").trim();
+            if (acc.length() >= 9) return acc;
         }
 
+        // 2. Statement of Account <ACC_NO>
+        Matcher stmtAcc = Pattern.compile(
+                "Statement\\s+of\\s+Account\\s+([0-9]{10,18})",
+                Pattern.CASE_INSENSITIVE).matcher(text);
+        if (stmtAcc.find()) {
+            return stmtAcc.group(1).trim();
+        }
+
+        // 3. Fallback: longest digit sequence in header
         return longestDigitSequence(text);
     }
 

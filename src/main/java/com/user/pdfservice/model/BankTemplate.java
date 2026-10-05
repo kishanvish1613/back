@@ -1,5 +1,5 @@
 package com.user.pdfservice.model;
 
 public enum BankTemplate {
-  SBI, KOTAK, AXIS, SBI2, KOTAKNEW, SBINEW, BOI, HDFC
+  SBI, KOTAK, AXIS, SBI2, KOTAKNEW, SBINEW, BOI, HDFC, UNIONBANK, HDFCCURRENT, AU
 }
