@@ -9,7 +9,9 @@ public class NameExtractor {
             return null;
 
         if (bank != null) {
-            if (bank.equalsIgnoreCase("AXIS")) {
+            if (bank.equalsIgnoreCase("SBI") || bank.equalsIgnoreCase("SBINEW")) {
+                return extractSbi(text);
+            } else if (bank.equalsIgnoreCase("AXIS")) {
                 return extractAxis(text);
             } else if (bank.equalsIgnoreCase("BOI")) {
                 return extractBoi(text);
@@ -156,6 +158,49 @@ public class NameExtractor {
             }
         }
         return null;
+    }
+
+    public static String extractSbi(String text) {
+        if (text == null) return null;
+        String normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+
+        // 1. Under "STATEMENT OF ACCOUNT" (e.g. "STATEMENT OF ACCOUNT\nRAVINDRA  NASHIKKAR  State Bank of India")
+        Matcher mStmt = Pattern.compile("(?im)STATEMENT\\s+OF\\s+ACCOUNT\\s*\\n\\s*([A-Za-z][A-Za-z\\s.]{2,50}?)(?:\\s+State\\s+Bank|\\r|\\n|$)", Pattern.CASE_INSENSITIVE).matcher(normalized);
+        if (mStmt.find()) {
+            String name = mStmt.group(1).trim().replaceAll("(?i)\\s*State\\s+Bank.*", "").trim();
+            if (isValidSbiName(name)) return clean(name);
+        }
+
+        // 2. Line before email address
+        String[] lines = normalized.split("\n");
+        for (int i = 0; i < lines.length; i++) {
+            if (lines[i].contains("@")) {
+                for (int j = i - 1; j >= 0; j--) {
+                    String prev = lines[j].trim().replaceAll("(?i)\\s*State\\s+Bank.*", "").trim();
+                    if (isValidSbiName(prev) && !prev.equalsIgnoreCase("STATEMENT OF ACCOUNT") && !prev.equalsIgnoreCase("Account Summary")) {
+                        return clean(prev);
+                    }
+                }
+            }
+        }
+
+        // 3. Welcome line fallback
+        Matcher mWelcome = Pattern.compile("(?im)Welcome\\s*:\\s*\\n?\\s*([A-Za-z][A-Za-z\\s.]{2,50}?)(?:\\s*\\n|\\r|Account\\s+Summary|$)", Pattern.CASE_INSENSITIVE).matcher(normalized);
+        if (mWelcome.find()) {
+            String name = mWelcome.group(1).trim().replaceAll("\\.+$", "").trim();
+            if (isValidSbiName(name)) return clean(name);
+        }
+
+        return null;
+    }
+
+    private static boolean isValidSbiName(String s) {
+        if (s == null) return false;
+        String t = s.trim().toLowerCase();
+        if (t.length() < 3 || t.length() > 60) return false;
+        if (t.contains("state bank") || t.contains("statement of account") || t.contains("account summary") || t.contains("welcome:")) return false;
+        if (t.matches(".*\\d{4}.*")) return false;
+        return true;
     }
 
     public static String extractAxis(String text) {

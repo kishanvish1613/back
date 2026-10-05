@@ -741,6 +741,12 @@ public class OcrProcessingService {
     private static void extractSbiFieldsLineByLine(OcrResult r, String text) {
         String[] lines = text.split("\\r?\\n");
 
+        // ----- Customer Name -----
+        if (isEmpty(r.name)) {
+            r.name = NameExtractor.extract(text, "SBI");
+            System.out.println("DEBUG: SBI Name = " + r.name);
+        }
+
         // ----- Statement Period -----
         for (String line : lines) {
             Matcher m = Pattern.compile(
@@ -755,18 +761,18 @@ public class OcrProcessingService {
             }
         }
 
-        // ----- Clear Balance -----
-        for (int i = 0; i < lines.length; i++) {
-            if (lines[i].toLowerCase().contains("clear balance")) {
-                for (int j = i + 1; j < lines.length; j++) {
-                    String val = lines[j].trim();
-                    if (!val.isEmpty() && val.matches("^[\\d,]+\\.\\d{2}CR$")) {
-                        r.openingBalance = val;
-                        System.out.println("DEBUG: Clear Balance = " + r.openingBalance);
-                        break;
-                    }
-                }
-                break;
+        // ----- Balances (Clear Balance & Summary) -----
+        Matcher mSummary = Pattern.compile("(?i)Brought\\s+Forward[^\\n]*?\\n\\s*([\\d,]+\\.\\d{2})(?:CR)?\\s+\\d+\\s+\\d+\\s+[\\d,.]+\\s+[\\d,.]+\\s+([\\d,]+\\.\\d{2})(?:CR)?").matcher(text);
+        if (mSummary.find()) {
+            r.openingBalance = mSummary.group(1).replace(",", "").trim();
+            r.closingBalance = mSummary.group(2).replace(",", "").trim();
+            System.out.println("DEBUG: SBI Summary Opening = " + r.openingBalance + ", Closing = " + r.closingBalance);
+        } else {
+            Matcher mClear = Pattern.compile("(?i)Clear\\s+Balance\\s*[:\\-]?\\s*([\\d,]+\\.\\d{2})(?:CR)?").matcher(text);
+            if (mClear.find()) {
+                r.closingBalance = mClear.group(1).replace(",", "").trim();
+                r.openingBalance = r.closingBalance;
+                System.out.println("DEBUG: SBI Clear Balance = " + r.closingBalance);
             }
         }
 

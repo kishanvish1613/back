@@ -25,19 +25,20 @@ public final class BankDetector {
             return null;
         String t = text.toUpperCase();
 
-        // 1. High-confidence multi-word brand signatures
+        // 1. High-confidence multi-word brand signatures (Order matters!)
+        if (t.contains("STATE BANK OF INDIA") || t.contains("ONLINESBI.COM") || t.contains("ONLINESBI.SBM") || t.contains("STATE BANK"))
+            return "SBI";
         if (t.contains("AU SMALL FINANCE BANK") || t.contains("AUBANK.IN") || t.contains("AU CURRENT ACCOUNT") || t.contains("AU SMALL FINANCE"))
             return "AU";
-        if (t.contains("UNION BANK OF INDIA") || t.contains("UNIONBANKOFINDIA") || t.contains("UNION BANK"))
+        if (t.contains("UNION BANK OF INDIA") || t.contains("UNIONBANKOFINDIA") || (t.contains("UNION BANK") && !t.contains("STATE BANK")))
             return "UNIONBANK";
-        if (t.contains("BANK OF INDIA") || t.contains("BANKOFINDIA.CO.IN") || t.contains("RELATIONSHIP BEYOND BANKING"))
+        if (t.contains("BANKOFINDIA.CO.IN") || t.contains("RELATIONSHIP BEYOND BANKING") ||
+            (t.contains("BANK OF INDIA") && !t.contains("STATE BANK OF INDIA") && !t.contains("UNION BANK OF INDIA")))
             return "BOI";
         if (t.contains("HDFC BANK") || t.contains("HDFCBANK.COM") || t.contains("WE UNDERSTAND YOUR WORLD") || t.contains("BIZ PRO PLUS ACCOUNT"))
             return "HDFC";
         if (t.contains("KOTAK MAHINDRA BANK") || t.contains("KOTAK.BANK.IN") || t.contains("KOTAK811") || t.contains("HAUSLA HAI TOH HO JAYEGA"))
             return "KOTAKNEW";
-        if (t.contains("STATE BANK OF INDIA") || t.contains("ONLINESBI.COM") || t.contains("ONLINESBI.SBM"))
-            return "SBI";
         if (t.contains("AXIS BANK") || t.contains("AXISBANK.COM") || t.contains("AXIS BANK LTD"))
             return "AXIS";
 
@@ -45,13 +46,13 @@ public final class BankDetector {
     }
 
     public static String detect(String ifsc, String text) {
-        // Priority 1: High-confidence text brand signature from header
-        String bankFromText = detectFromText(text);
-        if (bankFromText != null) return bankFromText;
-
-        // Priority 2: Header IFSC code
+        // Priority 1: High-confidence header IFSC code (e.g. SBIN -> SBI, BKID -> BOI, HDFC -> HDFC, etc.)
         String bankFromIfsc = detectFromIFSC(ifsc);
         if (bankFromIfsc != null) return bankFromIfsc;
+
+        // Priority 2: High-confidence text brand signature from header
+        String bankFromText = detectFromText(text);
+        if (bankFromText != null) return bankFromText;
 
         return null;
     }
