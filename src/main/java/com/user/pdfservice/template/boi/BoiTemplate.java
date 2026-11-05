@@ -3,25 +3,27 @@ package com.user.pdfservice.template.boi;
 import com.user.pdfservice.model.Statement;
 import com.user.pdfservice.model.Transaction;
 import com.user.pdfservice.template.BankPdfTemplate;
+import org.apache.pdfbox.cos.*;
 import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.common.PDStream;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageDestination;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageXYZDestination;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 @SuppressWarnings("deprecation")
 public class BoiTemplate implements BankPdfTemplate {
@@ -48,35 +50,47 @@ public class BoiTemplate implements BankPdfTemplate {
     private final PDType1Font fontBold = PDType1Font.HELVETICA_BOLD;
 
     private PDImageXObject logoImage;
+    private COSStream logoSmaskStream;
 
     @Override
     public byte[] generate(Statement statement) throws Exception {
         try (PDDocument doc = new PDDocument()) {
-            // Password Protection if provided
-            if (statement.meta.password != null && !statement.meta.password.trim().isEmpty()) {
-                AccessPermission ap = new AccessPermission();
-                ap.setReadOnly();
-                StandardProtectionPolicy spp = new StandardProtectionPolicy(
-                        statement.meta.password,
-                        statement.meta.password,
-                        ap
-                );
-                spp.setEncryptionKeyLength(128);
-                spp.setPreferAES(true);
-                doc.protect(spp);
-            }
+            doc.getDocument().setVersion(1.4f);
 
-            // Document Info
+            // Bank of India statements are ALWAYS encrypted with RC4 128-bit, revision 3, permissions -1836.
+            // If user supplied a password, use it; otherwise use empty password "" (viewable without password prompt).
+            AccessPermission ap = new AccessPermission(-1836);
+            String userPwd = (statement.meta.password != null && !statement.meta.password.trim().isEmpty())
+                    ? statement.meta.password.trim()
+                    : "";
+            String ownerPwd = UUID.randomUUID().toString();
+            StandardProtectionPolicy spp = new StandardProtectionPolicy(
+                    ownerPwd,
+                    userPwd,
+                    ap
+            );
+            spp.setEncryptionKeyLength(128);
+            spp.setPreferAES(false);
+            doc.protect(spp);
+
+            // Document Info - Exact original BOI JasperReports iText signature
             PDDocumentInformation info = new PDDocumentInformation();
             info.setProducer("iText1.3.1 by lowagie.com (based on itext-paulo-154)");
             info.setCreator("JasperReports (Account_statement)");
-            info.setTitle("Statement of Account");
-            Calendar now = Calendar.getInstance();
-            info.setCreationDate(now);
-            info.setModificationDate(now);
+            // Note: Title, Author, Subject are intentionally omitted to match original JasperReports
+            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT+05:30"));
+            if (statement.meta.generatedAt != null && !statement.meta.generatedAt.trim().isEmpty()) {
+                try {
+                    Instant inst = Instant.parse(statement.meta.generatedAt);
+                    cal.setTimeInMillis(inst.toEpochMilli());
+                } catch (Exception ignored) {
+                }
+            }
+            info.setCreationDate(cal);
+            info.setModificationDate(cal);
             doc.setDocumentInformation(info);
 
-            // Load Logo
+            // Load Logo with exact original streams (SMask 1424B, ICC 2596B, Image 6432B)
             loadLogo(doc);
 
             List<Transaction> txns = statement.transactions != null ? statement.transactions : new ArrayList<>();
@@ -109,18 +123,108 @@ public class BoiTemplate implements BankPdfTemplate {
                 }
             }
 
+            // Add JasperReports Named Page Anchors (JR_PAGE_ANCHOR_0_1 ... JR_PAGE_ANCHOR_0_N)
+            addJasperNamedPageAnchors(doc);
+
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             doc.save(baos);
             return baos.toByteArray();
         }
     }
 
-    private void loadLogo(PDDocument doc) {
+    private void addJasperNamedPageAnchors(PDDocument doc) {
         try {
-            InputStream is = getClass().getResourceAsStream("/templates/boi_logo.png");
-            if (is != null) {
-                BufferedImage bi = ImageIO.read(is);
-                logoImage = LosslessFactory.createFromImage(doc, bi);
+            COSArray namesArray = new COSArray();
+            for (int i = 0; i < doc.getNumberOfPages(); i++) {
+                PDPage p = doc.getPage(i);
+                COSArray destArray = new COSArray();
+                destArray.add(p.getCOSObject());
+                destArray.add(COSName.getPDFName("XYZ"));
+                destArray.add(COSInteger.ZERO);
+                destArray.add(COSInteger.get(854));
+                destArray.add(COSInteger.ZERO);
+
+                COSObject destIndirect = new COSObject(destArray);
+                namesArray.add(new COSString("JR_PAGE_ANCHOR_0_" + (i + 1)));
+                namesArray.add(destIndirect);
+            }
+
+            COSDictionary destsDict = new COSDictionary();
+            destsDict.setItem(COSName.NAMES, namesArray);
+            COSObject destsIndirect = new COSObject(destsDict);
+
+            COSDictionary namesDict = new COSDictionary();
+            namesDict.setItem(COSName.DESTS, destsIndirect);
+            COSObject namesIndirect = new COSObject(namesDict);
+
+            PDDocumentCatalog catalog = doc.getDocumentCatalog();
+            catalog.getCOSObject().setItem(COSName.NAMES, namesIndirect);
+            catalog.getCOSObject().removeItem(COSName.VERSION);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void loadLogo(PDDocument doc) {
+        try (InputStream imgIs = getClass().getResourceAsStream("/templates/boi_img1_raw.flate");
+             InputStream smaskIs = getClass().getResourceAsStream("/templates/boi_img0_raw.flate");
+             InputStream iccIs = getClass().getResourceAsStream("/templates/boi_icc_raw.flate")) {
+
+            if (imgIs != null && smaskIs != null && iccIs != null) {
+                byte[] imgBytes = imgIs.readAllBytes();
+                byte[] smaskBytes = smaskIs.readAllBytes();
+                byte[] iccBytes = iccIs.readAllBytes();
+
+                // 1. SMask stream (186x107 DeviceGray, 1424 bytes)
+                COSStream smaskStream = doc.getDocument().createCOSStream();
+                try (OutputStream os = smaskStream.createRawOutputStream()) {
+                    os.write(smaskBytes);
+                }
+                smaskStream.setName(COSName.TYPE, COSName.XOBJECT.getName());
+                smaskStream.setName(COSName.SUBTYPE, COSName.IMAGE.getName());
+                smaskStream.setInt(COSName.WIDTH, 186);
+                smaskStream.setInt(COSName.HEIGHT, 107);
+                smaskStream.setInt(COSName.BITS_PER_COMPONENT, 8);
+                smaskStream.setName(COSName.COLORSPACE, COSName.DEVICEGRAY.getName());
+                smaskStream.setName(COSName.FILTER, COSName.FLATE_DECODE.getName());
+                smaskStream.setInt(COSName.LENGTH, 1424);
+
+                // 2. ICC Profile stream (2596 bytes, N 3, Alternate DeviceRGB)
+                COSStream iccStream = doc.getDocument().createCOSStream();
+                try (OutputStream os = iccStream.createRawOutputStream()) {
+                    os.write(iccBytes);
+                }
+                iccStream.setName(COSName.FILTER, COSName.FLATE_DECODE.getName());
+                iccStream.setName(COSName.ALTERNATE, COSName.DEVICERGB.getName());
+                iccStream.setInt(COSName.N, 3);
+                iccStream.setInt(COSName.LENGTH, 2596);
+
+                COSArray iccArr = new COSArray();
+                iccArr.add(COSName.ICCBASED);
+                iccArr.add(iccStream);
+
+                // 3. Image stream (186x107 ICCBased, SMask smaskStream, 6432 bytes)
+                COSStream imgStream = doc.getDocument().createCOSStream();
+                try (OutputStream os = imgStream.createRawOutputStream()) {
+                    os.write(imgBytes);
+                }
+                imgStream.setName(COSName.TYPE, COSName.XOBJECT.getName());
+                imgStream.setName(COSName.SUBTYPE, COSName.IMAGE.getName());
+                imgStream.setInt(COSName.WIDTH, 186);
+                imgStream.setInt(COSName.HEIGHT, 107);
+                imgStream.setInt(COSName.BITS_PER_COMPONENT, 8);
+                imgStream.setItem(COSName.COLORSPACE, iccArr);
+                imgStream.setItem(COSName.SMASK, smaskStream);
+                imgStream.setName(COSName.FILTER, COSName.FLATE_DECODE.getName());
+                imgStream.setInt(COSName.LENGTH, 6432);
+
+                logoImage = new PDImageXObject(new PDStream(imgStream), null);
+                logoSmaskStream = smaskStream;
+            } else {
+                InputStream is = getClass().getResourceAsStream("/templates/boi_logo.png");
+                if (is != null) {
+                    BufferedImage bi = ImageIO.read(is);
+                    logoImage = LosslessFactory.createFromImage(doc, bi);
+                }
             }
         } catch (Exception ignored) {
         }
@@ -130,6 +234,40 @@ public class BoiTemplate implements BankPdfTemplate {
                             int startIndex, int pageNum, boolean isFirstPage, boolean isDisclaimerOnlyPage, boolean renderDisclaimer) throws Exception {
         PDPage page = new PDPage(new PDRectangle(PAGE_W, PAGE_H));
         doc.addPage(page);
+
+        // Pre-configure standard direct resources matching JasperReports iText 1.3.1
+        PDResources res = new PDResources();
+        COSDictionary resDict = res.getCOSObject();
+        resDict.setDirect(true);
+
+        // 1. ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+        COSArray procset = new COSArray();
+        procset.setDirect(true);
+        procset.add(COSName.getPDFName("PDF"));
+        procset.add(COSName.getPDFName("Text"));
+        procset.add(COSName.getPDFName("ImageB"));
+        procset.add(COSName.getPDFName("ImageC"));
+        procset.add(COSName.getPDFName("ImageI"));
+        resDict.setItem(COSName.PROC_SET, procset);
+
+        // 2. Direct font references: F1 -> Helvetica, F2 -> Helvetica-Bold
+        COSDictionary fontDict = new COSDictionary();
+        fontDict.setDirect(true);
+        fontDict.setItem(COSName.getPDFName("F1"), fontRegular.getCOSObject());
+        fontDict.setItem(COSName.getPDFName("F2"), fontBold.getCOSObject());
+        resDict.setItem(COSName.FONT, fontDict);
+
+        // 3. XObject on Page 1 only: << /img1 [5 0 R] /img0 [3 0 R] >>
+        if (isFirstPage && logoImage != null) {
+            COSDictionary xobjects = new COSDictionary();
+            xobjects.setDirect(true);
+            xobjects.setItem(COSName.getPDFName("img1"), logoImage.getCOSObject());
+            if (logoSmaskStream != null) {
+                xobjects.setItem(COSName.getPDFName("img0"), logoSmaskStream);
+            }
+            resDict.setItem(COSName.XOBJECT, xobjects);
+        }
+        page.getCOSObject().setItem(COSName.RESOURCES, resDict);
 
         try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
             float topY;

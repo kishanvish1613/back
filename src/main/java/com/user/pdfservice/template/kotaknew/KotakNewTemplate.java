@@ -1,32 +1,19 @@
 package com.user.pdfservice.template.kotaknew;
 
+import com.lowagie.text.Document;
+import com.lowagie.text.Image;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.pdf.*;
 import com.user.pdfservice.model.Statement;
 import com.user.pdfservice.model.Transaction;
 import com.user.pdfservice.template.BankPdfTemplate;
 
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import org.apache.pdfbox.cos.COSDictionary;
-import org.apache.pdfbox.cos.COSName;
-import org.apache.pdfbox.pdmodel.*;
-import org.apache.pdfbox.pdmodel.PDPageContentStream.AppendMode;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
-import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
-import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.graphics.PDXObject;
-import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
-import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import java.io.InputStream;
+import java.util.*;
 
-@SuppressWarnings("deprecation")
 public class KotakNewTemplate implements BankPdfTemplate {
 
     private final float TXNROW_H = 10.68f;
@@ -49,7 +36,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
     private float RIGHT_BAL;
     private float RIGHT_DR;
     private float RIGHT_CR;
-    private Map<String, BufferedImage> extractedImages = new LinkedHashMap<>();
+    private Map<String, Image> extractedImages = new LinkedHashMap<>();
     private Statement stmt;
     private double CLOSING_BAL;
 
@@ -80,90 +67,196 @@ public class KotakNewTemplate implements BankPdfTemplate {
             CLOSING_BAL = Math.max(0, stmt.details.startingBalance);
         }
 
-        try (PDDocument doc = new PDDocument()) {
-            // PDF version 1.5
-            doc.getDocument().setVersion(1.5f);
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            Document doc = new Document(PageSize.A4, 0, 0, 0, 0);
+            PdfWriter writer = PdfWriter.getInstance(doc, baos);
+            writer.setPdfVersion(PdfWriter.VERSION_1_5);
+            writer.setFullCompression();
 
-            PDDocumentInformation info = new PDDocumentInformation();
-            info.setProducer("OpenPDF 2.0.3");
-            Calendar now = Calendar.getInstance();
-            info.setCreationDate(now);
-            doc.setDocumentInformation(info);
-
-            PDDocument original = PDDocument.load(new File("kotaknew.pdf"));
-            extractImagesFromPage(original, 0, extractedImages);
-            extractImagesFromPage(original, 2, extractedImages);
-            extractImagesFromPage(original, 3, extractedImages);
-
-            PDRectangle A4_EXACT = new PDRectangle(595f, 842f);
-            PDPage page = new PDPage(A4_EXACT);
-            doc.addPage(page);
-
-            Fonts fonts = Fonts.load(doc);
-
-            RIGHT_BAL = 535f + (fonts.regular.getStringWidth("464.93") / 1000f) * 7.68f;
-            RIGHT_CR = 465.95f + (fonts.regular.getStringWidth("400.00") / 1000f) * 7.68f;
-            RIGHT_DR = 391.17f + (fonts.regular.getStringWidth("2,900.00") / 1000f) * 7.68f;
-
-            PDPageContentStream cs = new PDPageContentStream(doc, page, AppendMode.APPEND, false);
-
-            PDResources res = page.getResources();
-            if (res == null) {
-                res = new PDResources();
-                page.setResources(res);
+            // Password encryption (Mode B)
+            String password = null;
+            if (stmt.meta != null && stmt.meta.password != null && !stmt.meta.password.trim().isEmpty()) {
+                password = stmt.meta.password.trim();
+            } else if (stmt.details != null && stmt.details.password != null && !stmt.details.password.trim().isEmpty()) {
+                password = stmt.details.password.trim();
             }
 
-            var first = extractedImages.entrySet().iterator().next();
-            PDImageXObject ximg = LosslessFactory.createFromImage(doc, first.getValue());
-            page.getResources().put(COSName.getPDFName(first.getKey()), ximg);
+            if (password != null) {
+                byte[] userPwd = password.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                int permissions = PdfWriter.AllowPrinting | PdfWriter.AllowCopy | PdfWriter.AllowScreenReaders;
+                writer.setEncryption(userPwd, null, permissions, PdfWriter.ENCRYPTION_AES_128);
+            }
 
-            cs.appendRawCommands("q\n");
-            cs.appendRawCommands("q 595 0 0 74.85 0 767.15 cm /img0 Do Q\n");
-            cs.appendRawCommands("Q\n");
-            cs.appendRawCommands("q\n");
+            doc.open();
 
-            renderHeader(cs, fonts);
-            renderTransactionTableHeader(cs, fonts, 487.5f);
-            renderOpeningBalance(cs, fonts);
-            cs.close();
+            // Set OpenPDF metadata
+            writer.getInfo().put(PdfName.PRODUCER, new PdfString("OpenPDF 2.0.3"));
+            writer.getInfo().put(PdfName.CREATIONDATE, new PdfDate());
+            writer.getInfo().remove(PdfName.CREATOR);
+            writer.getInfo().remove(PdfName.MODDATE);
 
-            PageCursor pc = new PageCursor(doc, fonts, page, PAGE1_TXN_START);
+            PdfContentByte cb = writer.getDirectContent();
+            KotakCanvas canvas = new KotakCanvas(cb);
+
+            // Obj 1: Template for Page Count (Form XObject [0 0 30 16])
+            PdfTemplate tpl = cb.createTemplate(30, 16);
+
+            // Load Fonts & register them as Obj 2, 3, 4
+            Fonts fonts = Fonts.load();
+            cb.setFontAndSize(fonts.semiBold, 12);
+            cb.setFontAndSize(fonts.regular, 10);
+            cb.setFontAndSize(fonts.helvetica, 10);
+
+            RIGHT_BAL = 535f + fonts.regular.getWidthPoint("464.93", 7.68f);
+            RIGHT_CR = 465.95f + fonts.regular.getWidthPoint("400.00", 7.68f);
+            RIGHT_DR = 391.17f + fonts.regular.getWidthPoint("2,900.00", 7.68f);
+
+            // Load raw images
+            this.extractedImages = loadRawImages();
+
+            // Page 1: Top logo banner -> Obj 5: img0
+            Image img0 = extractedImages.get("img0");
+            if (img0 != null) {
+                canvas.drawImage(img0, 595f, 0f, 0f, 74.85f, 0f, 767.15f);
+            }
+
+            PageCursor pc = new PageCursor(doc, writer, fonts, tpl, canvas, PAGE1_TXN_START);
+            pc.setPageHeaderRenderer(() -> {
+                try {
+                    drawHeader(canvas, fonts);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            pc.setPageFooterRenderer(() -> {
+                try {
+                    drawFooter(canvas, fonts, pc.getPageNumber(), tpl);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+            // Render Page 1
+            renderHeader(canvas, fonts);
+            renderTransactionTableHeader(canvas, fonts, 487.5f);
+            renderOpeningBalance(canvas, fonts);
+
+            // Transactions across pages
             drawAllTransactions(stmt.transactions, pc, fonts);
+
+            // Summary Page (Page 9 in 10-page doc)
             pc.nextPageWithImages(extractedImages, 1, 6);
             drawSummaryPage(pc, fonts);
+
+            // Notices Page (Page 10 in 10-page doc)
             pc.nextPageWithImages(extractedImages, 7, 8);
             drawLastPage(pc, fonts);
+
+            // Finish cursor (triggers last footer)
             pc.close();
 
-            drawHeaderAndFooter(doc, fonts);
+            // Populate template with total page count
+            tpl.beginText();
+            tpl.setFontAndSize(fonts.regular, 10);
+            tpl.showText(String.valueOf(pc.getPageNumber()));
+            tpl.endText();
 
-            // Force catalog version to 1.5
-            doc.getDocumentCatalog().getCOSObject().setName(COSName.VERSION, "1.5");
-
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            doc.save(out);
-            return out.toByteArray();
+            doc.close();
+            return baos.toByteArray();
         } catch (Exception e) {
             throw new RuntimeException("PDF generation failed", e);
         }
     }
 
-    private static void extractImagesFromPage(PDDocument doc, int pageIndex, Map<String, BufferedImage> out) throws IOException {
-        PDPage page = doc.getPage(pageIndex);
-        PDResources resources = page.getResources();
-        if (resources == null) return;
-        for (COSName name : resources.getXObjectNames()) {
-            PDXObject xobj = resources.getXObject(name);
-            if (xobj instanceof PDImageXObject img) {
-                out.putIfAbsent(name.getName(), img.getImage());
+    private static Map<String, Image> loadRawImages() {
+        File file = new File("account-bank.pdf");
+        if (!file.exists()) {
+            file = new File("src/main/resources/templates/kotak/account-bank.pdf");
+        }
+        try {
+            PdfReader reader;
+            if (file.exists()) {
+                reader = new PdfReader(file.getAbsolutePath());
+            } else {
+                InputStream is = KotakNewTemplate.class.getResourceAsStream("/templates/kotak/account-bank.pdf");
+                if (is == null) {
+                    throw new IllegalStateException("account-bank.pdf template not found");
+                }
+                reader = new PdfReader(is);
             }
+            try {
+                Map<String, Image> map = new LinkedHashMap<>();
+
+                // Obj 5: img0
+                PRStream s5 = (PRStream) reader.getPdfObject(5);
+                Image img0 = Image.getInstance(PdfReader.getStreamBytesRaw(s5));
+                map.put("img0", img0);
+
+                // Obj 24: img1
+                PRStream s24 = (PRStream) reader.getPdfObject(24);
+                Image img1 = Image.getInstance(PdfReader.getStreamBytesRaw(s24));
+                map.put("img1", img1);
+
+                // Obj 25 & 26: img2 & img3
+                PRStream s25 = (PRStream) reader.getPdfObject(25);
+                Image img2 = Image.getInstance(200, 200, 1, 8, PdfReader.getStreamBytes(s25));
+                img2.makeMask();
+                map.put("img2", img2);
+
+                PRStream s26 = (PRStream) reader.getPdfObject(26);
+                Image img3 = Image.getInstance(200, 200, 3, 8, PdfReader.getStreamBytes(s26));
+                img3.setImageMask(img2);
+                map.put("img3", img3);
+
+                // Obj 27 & 28: img4 & img5
+                PRStream s27 = (PRStream) reader.getPdfObject(27);
+                Image img4 = Image.getInstance(200, 200, 1, 8, PdfReader.getStreamBytes(s27));
+                img4.makeMask();
+                map.put("img4", img4);
+
+                PRStream s28 = (PRStream) reader.getPdfObject(28);
+                Image img5 = Image.getInstance(200, 200, 3, 8, PdfReader.getStreamBytes(s28));
+                img5.setImageMask(img4);
+                map.put("img5", img5);
+
+                // Obj 29 & 30: ICC Profile & img6 (QR code)
+                PRStream s29 = (PRStream) reader.getPdfObject(29);
+                PRStream s30 = (PRStream) reader.getPdfObject(30);
+                Image img6 = Image.getInstance(PdfReader.getStreamBytesRaw(s30));
+                if (s29 != null) {
+                    try {
+                        byte[] iccBytes = PdfReader.getStreamBytes(s29);
+                        java.awt.color.ICC_Profile icc = java.awt.color.ICC_Profile.getInstance(iccBytes);
+                        img6.tagICC(icc);
+                    } catch (Exception ignored) {}
+                }
+                map.put("img6", img6);
+
+                // Obj 34 & 35: img7 & img8
+                PRStream s34 = (PRStream) reader.getPdfObject(34);
+                Image img7 = Image.getInstance(100, 100, 1, 8, PdfReader.getStreamBytes(s34));
+                img7.makeMask();
+                map.put("img7", img7);
+
+                PRStream s35 = (PRStream) reader.getPdfObject(35);
+                Image img8 = Image.getInstance(100, 100, 3, 8, PdfReader.getStreamBytes(s35));
+                img8.setImageMask(img7);
+                map.put("img8", img8);
+
+                return map;
+            } finally {
+                reader.close();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load raw images for Kotak template", e);
         }
     }
 
     // =========================================================================
     // PAGE 1: HEADER & USER ACCOUNT DETAILS
     // =========================================================================
-    private void renderHeader(PDPageContentStream cs, Fonts fonts) throws Exception {
+    private void renderHeader(KotakCanvas cs, Fonts fonts) throws Exception {
         /* =========================================================
          * "Account Statement" Title & Period Range
          * • Title: "Account Statement" at Y = 724.50 (25pt SemiBold Black)
@@ -190,7 +283,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         renderHeaderInfo(cs, fonts);
     }
 
-    private void renderHeaderInfo(PDPageContentStream cs, Fonts fonts) throws Exception {
+    private void renderHeaderInfo(KotakCanvas cs, Fonts fonts) throws Exception {
         String customerName = (stmt.details.fullName != null && !stmt.details.fullName.isBlank())
                 ? stmt.details.fullName
                 : (stmt.details.name != null ? stmt.details.name : "");
@@ -276,11 +369,12 @@ public class KotakNewTemplate implements BankPdfTemplate {
          * • Account No.:        Y = 665 (Label Gray + Value SemiBold Black)
          * • Account Type:       Y = 649 (Label Gray + Value SemiBold Black)
          * • Branch:             Y = 633 (Label Gray + Value SemiBold Black)
-         * • Account Status:     Y = 595 (Label Gray + Value SemiBold Black)
+         * • Branch Phone:       Y = 617 (Label Gray + Value SemiBold Black)
+         * • Account Status:     Y = 591 (Label Gray + Value SemiBold Black)
          * • Nominee Registered: Y = 575 (Label Gray + Value SemiBold Black)
-         * • Currency:           Y = 545 (Label Gray + Value SemiBold Black)
-         * • TO SHIFT ALL RIGHT ITEMS UP/DOWN: Adjust individual Y values.
+         * • Currency:           Y = 549 (Label Gray + Value SemiBold Black)
          * ========================================================= */
+        // Account No.
         cs.beginText();
         cs.appendRawCommands("1 0 0 1 347.5 665 Tm\n");
         cs.setFont(fonts.regular, 9);
@@ -291,16 +385,19 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.showText(stmt.details.accountNumber != null ? stmt.details.accountNumber : "");
         cs.endText();
 
+        // Account Type
         cs.beginText();
         cs.appendRawCommands("1 0 0 1 347.5 649 Tm\n");
         cs.setFont(fonts.regular, 9);
         cs.setNonStrokingColor(0.35f, 0.35f, 0.35f);
-        cs.showText("Account Type ");
+        cs.showText("Account Type  ");
         cs.setFont(fonts.semiBold, 9);
         cs.setNonStrokingColor(0f, 0f, 0f);
-        cs.showText(stmt.details.accountType != null && !stmt.details.accountType.isBlank() ? stmt.details.accountType : "Savings");
+        String accType = stmt.details.accountType != null ? stmt.details.accountType : "Savings";
+        cs.showText(accType);
         cs.endText();
 
+        // Branch
         cs.beginText();
         cs.appendRawCommands("1 0 0 1 347.5 633 Tm\n");
         cs.setFont(fonts.regular, 9);
@@ -308,11 +405,26 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.showText("Branch ");
         cs.setFont(fonts.semiBold, 9);
         cs.setNonStrokingColor(0f, 0f, 0f);
-        cs.showText(stmt.details.branch != null ? stmt.details.branch : "");
+        cs.showText(stmt.details.branchAddress != null ? stmt.details.branchAddress : "");
         cs.endText();
 
+        // Branch Phone Number
         cs.beginText();
-        cs.appendRawCommands("1 0 0 1 347.5 595 Tm\n");
+        cs.appendRawCommands("1 0 0 1 347.5 617 Tm\n");
+        cs.setFont(fonts.regular, 9);
+        cs.setNonStrokingColor(0.35f, 0.35f, 0.35f);
+        cs.showText("Branch Phone Number ");
+        cs.setFont(fonts.semiBold, 9);
+        cs.setNonStrokingColor(0f, 0f, 0f);
+        String bPhone = (stmt.details.branchPhoneNo != null && !stmt.details.branchPhoneNo.isBlank() && !stmt.details.branchPhoneNo.equals(stmt.details.accountNumber))
+                ? stmt.details.branchPhoneNo
+                : "9522262613";
+        cs.showText(bPhone);
+        cs.endText();
+
+        // Account Status
+        cs.beginText();
+        cs.appendRawCommands("1 0 0 1 347.5 591 Tm\n");
         cs.setFont(fonts.regular, 9);
         cs.setNonStrokingColor(0.35f, 0.35f, 0.35f);
         cs.showText("Account Status ");
@@ -321,6 +433,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.showText("Active");
         cs.endText();
 
+        // Nominee Registered
         cs.beginText();
         cs.appendRawCommands("1 0 0 1 347.5 575 Tm\n");
         cs.setFont(fonts.regular, 9);
@@ -328,12 +441,12 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.showText("Nominee Registered ");
         cs.setFont(fonts.semiBold, 9);
         cs.setNonStrokingColor(0f, 0f, 0f);
-        String nomineeVal = (stmt.details.nomineeName != null && !stmt.details.nomineeName.isBlank() && !stmt.details.nomineeName.equalsIgnoreCase("No")) ? "Yes" : "No";
-        cs.showText(nomineeVal);
+        cs.showText("Yes");
         cs.endText();
 
+        // Currency
         cs.beginText();
-        cs.appendRawCommands("1 0 0 1 347.5 545 Tm\n");
+        cs.appendRawCommands("1 0 0 1 347.5 549 Tm\n");
         cs.setFont(fonts.regular, 9);
         cs.setNonStrokingColor(0.35f, 0.35f, 0.35f);
         cs.showText("Currency ");
@@ -343,14 +456,10 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.endText();
     }
 
-    // ----------------- TRANSACTION TABLE HEADER -----------------
-    /* =========================================================
-     * TRANSACTION TABLE HEADER (Page 1 Top Y = 487.5f)
-     * • Red Bar: X = 36 to 559, Height = 25 (Kotak Red)
-     * • Gray Column Header: Height = 25 (Header Gray)
-     * • 7 Columns: #, Date, Description, Chq/Ref. No., Withdrawal, Deposit, Balance
-     * ========================================================= */
-    private void renderTransactionTableHeader(PDPageContentStream cs, Fonts fonts, float topY) throws Exception {
+    // =========================================================================
+    // TRANSACTION TABLE HEADER & OPENING BALANCE
+    // =========================================================================
+    private void renderTransactionTableHeader(KotakCanvas cs, Fonts fonts, float topY) throws Exception {
         float tableLeft = 36f;
         float tableRight = 559f;
         float redBarHeight = 25f;
@@ -404,7 +513,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         }
     }
 
-    private void renderOpeningBalance(PDPageContentStream cs, Fonts fonts) throws Exception {
+    private void renderOpeningBalance(KotakCanvas cs, Fonts fonts) throws Exception {
         Object[] r = TemplateUtils.formatBalanceAndRightAlignX(stmt.details.startingBalance, fonts.regular, 7.68f, RIGHT_BAL);
         String fAmt = (String) r[0];
         float x1 = (float) r[1];
@@ -440,7 +549,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         for (int i = 0; i < tvals.length; i++) {
             float x = TXN_X[i];
             if (i != 2) {
-                PDPageContentStream cs = pc.cs();
+                KotakCanvas cs = pc.cs();
                 cs.beginText();
                 cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f %.2f Tm\n", x, yBefore));
                 cs.setFont(fonts.regular, 7.68f);
@@ -451,7 +560,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
                 y = renderWrappedDescription(pc, fonts.regular, 7.68f, txn.description, DESC_X, y, linesThatFit);
             }
         }
-        PDPageContentStream cs = pc.cs();
+        KotakCanvas cs = pc.cs();
         cs.setLineWidth(0.5f);
         cs.setLineCapStyle(2);
         cs.setStrokingColor(0.62353f, 0.63137f, 0.64314f);
@@ -463,7 +572,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
     }
 
     private void renderTransactionInfo(Transaction txn, float yBefore, PageCursor pc, Fonts fonts) throws Exception {
-        PDPageContentStream cs = pc.cs();
+        KotakCanvas cs = pc.cs();
 
         cs.beginText();
         cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f %.2f Tm\n", TXN_X[3], yBefore));
@@ -504,7 +613,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.endText();
     }
 
-    public static List<String> wrapDescriptionLines(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
+    public static List<String> wrapDescriptionLines(String text, BaseFont font, float fontSize, float maxWidth) {
         List<String> lines = new ArrayList<>();
         if (text == null || text.isBlank()) return lines;
         List<String> tokens = new ArrayList<>();
@@ -523,7 +632,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         StringBuilder line = new StringBuilder();
         for (String token : tokens) {
             String test = line.length() == 0 ? token : (line.toString().endsWith("/") ? line + token : line + " " + token);
-            float width = (font.getStringWidth(test) / 1000f) * fontSize;
+            float width = font.getWidthPoint(test, fontSize);
             if (width <= maxWidth) {
                 line.setLength(0);
                 line.append(test);
@@ -532,14 +641,14 @@ public class KotakNewTemplate implements BankPdfTemplate {
                     lines.add(line.toString());
                     line.setLength(0);
                 }
-                float tokWidth = (font.getStringWidth(token) / 1000f) * fontSize;
+                float tokWidth = font.getWidthPoint(token, fontSize);
                 if (tokWidth <= maxWidth) {
                     line.append(token);
                 } else {
                     String rem = token;
-                    while ((font.getStringWidth(rem) / 1000f) * fontSize > maxWidth) {
+                    while (font.getWidthPoint(rem, fontSize) > maxWidth) {
                         int cut = rem.length();
-                        while (cut > 1 && (font.getStringWidth(rem.substring(0, cut)) / 1000f) * fontSize > maxWidth) {
+                        while (cut > 1 && font.getWidthPoint(rem.substring(0, cut), fontSize) > maxWidth) {
                             cut--;
                         }
                         lines.add(rem.substring(0, cut));
@@ -555,8 +664,8 @@ public class KotakNewTemplate implements BankPdfTemplate {
         return lines;
     }
 
-    private float renderWrappedDescription(PageCursor pc, PDFont font, float fontSize, String text, float startX, float startY, int maxLinesOnPage) throws Exception {
-        PDPageContentStream cs = pc.cs();
+    private float renderWrappedDescription(PageCursor pc, BaseFont font, float fontSize, String text, float startX, float startY, int maxLinesOnPage) throws Exception {
+        KotakCanvas cs = pc.cs();
         List<String> lines = wrapDescriptionLines(text, font, fontSize, DESC_WIDTH);
         float y = startY;
 
@@ -592,14 +701,13 @@ public class KotakNewTemplate implements BankPdfTemplate {
         return lines;
     }
 
-    // ---------- NEW helper: wrap by actual rendered pixel width ----------
-    private List<String> wrapTextByWidth(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
+    private List<String> wrapTextByWidth(String text, BaseFont font, float fontSize, float maxWidth) {
         List<String> lines = new ArrayList<>();
         String[] words = text.trim().split("\\s+");
         StringBuilder line = new StringBuilder();
         for (String word : words) {
             String test = line.length() == 0 ? word : line + " " + word;
-            float width = (font.getStringWidth(test) / 1000f) * fontSize;
+            float width = font.getWidthPoint(test, fontSize);
             if (width > maxWidth && line.length() > 0) {
                 lines.add(line.toString());
                 line.setLength(0);
@@ -613,46 +721,61 @@ public class KotakNewTemplate implements BankPdfTemplate {
         return lines;
     }
 
-    private int countWrappedLines(PDFont font, float fontSize, String text, float maxWidth) throws Exception {
+    private int countWrappedLines(BaseFont font, float fontSize, String text, float maxWidth) {
         return Math.max(1, wrapDescriptionLines(text, font, fontSize, maxWidth).size());
     }
 
     private final void drawAllTransactions(List<Transaction> txns, PageCursor pc, Fonts fonts) throws Exception {
-        int i = 1;
-        for (Transaction txn : txns) {
-            int descLines = countWrappedLines(fonts.regular, 7.68f, txn.description, DESC_WIDTH);
-            float neededHeight = Math.max(1, descLines) * LINE_H + 6f;
-            pc.ensureSpace(neededHeight);
-            pc.y(renderTransaction(i++, txn, pc, fonts));
-            pc.moveDown(TXNROW_H);
+        if (txns == null || txns.isEmpty()) return;
+
+        for (int i = 0; i < txns.size(); i++) {
+            Transaction t = txns.get(i);
+            int lines = countWrappedLines(fonts.regular, 7.68f, t.description != null ? t.description : "", DESC_WIDTH);
+            float rowHeight = TXNROW_H + (lines - 1) * LINE_H;
+
+            pc.ensureSpace(rowHeight);
+
+            float yBefore = pc.y();
+            renderTransactionInfo(t, yBefore, pc, fonts);
+
+            String[] tvals = { String.valueOf(i + 1), TemplateUtils.formatDateDMMMYYYY(t.date), t.description };
+            for (int col = 0; col < tvals.length; col++) {
+                float x = TXN_X[col];
+                if (col != 2) {
+                    KotakCanvas cs = pc.cs();
+                    cs.beginText();
+                    cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f %.2f Tm\n", x, yBefore));
+                    cs.setFont(fonts.regular, 7.68f);
+                    cs.showText(tvals[col]);
+                    cs.setNonStrokingColor(0f, 0f, 0f);
+                    cs.endText();
+                } else {
+                    renderWrappedDescription(pc, fonts.regular, 7.68f, t.description, DESC_X, yBefore, lines);
+                }
+            }
+
+            KotakCanvas cs = pc.cs();
+            cs.setLineWidth(0.5f);
+            cs.setLineCapStyle(2);
+            cs.setStrokingColor(0.62353f, 0.63137f, 0.64314f);
+            float sepY = yBefore - (lines - 1) * LINE_H - 3f;
+            cs.moveTo(36f, sepY);
+            cs.lineTo(559f, sepY);
+            cs.stroke();
+
+            pc.moveDown(rowHeight);
         }
     }
 
-    // ----------------- SUMMARY PAGE (with three-column footer) -----------------
     // =========================================================================
-    // PAGE 3: SUMMARY PAGE (Account Summary, End of Statement, Ad, Contact, Remember Box)
-    // -------------------------------------------------------------------------
-    // PDF COORDINATE SYSTEM GUIDE:
-    // • (0, 0) is at the BOTTOM-LEFT of the page. Total Height = 842, Width = 595.
-    // • Y-Axis: Increasing Y moves UP (towards top). Decreasing Y moves DOWN (towards bottom).
-    // • X-Axis: Increasing X moves RIGHT. Decreasing X moves LEFT.
-    // • Colors: setNonStrokingColor(R, G, B) from 0.0f (0) to 1.0f (255).
-    //   - Kotak Red: (0.92941f, 0.1098f, 0.14118f) [#ED1C24]
-    //   - Dark Header Gray: (0.62353f, 0.63137f, 0.64314f) [#9FA1A4]
-    //   - Medium Label Gray: (0.35f, 0.35f, 0.35f) [#595959]
-    //   - Light Box Gray: (0.91765f, 0.92157f, 0.92549f) [#EAEBED]
-    //   - Pure Black: (0f, 0f, 0f)
+    // PAGE 9: ACCOUNT SUMMARY & ASSISTANCE PAGE
     // =========================================================================
-    private final void drawSummaryPage(PageCursor pc, Fonts fonts) throws IOException {
-        PDPageContentStream cs = pc.cs();
+    private final void drawSummaryPage(PageCursor pc, Fonts fonts) throws Exception {
+        KotakCanvas cs = pc.cs();
 
         /* =========================================================
          * 1. RED SECTION HEADER BAR ("Account Summary")
-         * • X = 36 (Left margin)
-         * • Y = 737 (Bottom of red bar; increase to move UP, decrease to move DOWN)
-         * • Width = 523 (Spans from X=36 to X=559)
-         * • Height = 25 (Top of red bar is at 737 + 25 = 762)
-         * • Color: Kotak Red (0.92941f, 0.1098f, 0.14118f)
+         * • X = 36 (Left margin), Y = 737, Width = 523, Height = 25
          * ========================================================= */
         cs.saveGraphicsState();
         cs.setNonStrokingColor(0.92941f, 0.1098f, 0.14118f); // Kotak Red
@@ -662,7 +785,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         /* Title text inside Red Bar: "Account Summary" (White, 12pt) */
         cs.beginText();
-        cs.appendRawCommands("1 0 0 1 251.42 744.5 Tm\n"); // X=251.42 (centered), Y=744.5 (vertical center in bar)
+        cs.appendRawCommands("1 0 0 1 251.42 744.5 Tm\n");
         cs.setFont(fonts.regular, 12);
         cs.setNonStrokingColor(1f, 1f, 1f); // White text
         cs.showText("Account Summary");
@@ -670,11 +793,6 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         /* =========================================================
          * 2. COLUMN HEADER BACKGROUNDS (Gray banner below red bar)
-         * • Y = 704 (Height = 33, top connects to 737)
-         * • Column 1 (Particulars): X=36, Width=237.73
-         * • Column 2 (Opening Balance): X=273.73, Width=142.64
-         * • Column 3 (Closing Balance): X=416.36, Width=142.64
-         * • Color: Dark Header Gray (0.62353f, 0.63137f, 0.64314f)
          * ========================================================= */
         cs.saveGraphicsState();
         cs.setNonStrokingColor(0.62353f, 0.63137f, 0.64314f); // Header Gray
@@ -699,21 +817,21 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         /* Header Labels inside Gray Bar (White text, 9pt, Y=716) */
         cs.beginText();
-        cs.appendRawCommands("1 0 0 1 48 716 Tm\n"); // Particulars label
+        cs.appendRawCommands("1 0 0 1 48 716 Tm\n");
         cs.setFont(fonts.regular, 9);
         cs.setNonStrokingColor(1f, 1f, 1f);
         cs.showText("   Particulars");
         cs.endText();
 
         cs.beginText();
-        cs.appendRawCommands("1 0 0 1 285.73 716 Tm\n"); // Opening Balance label
+        cs.appendRawCommands("1 0 0 1 285.73 716 Tm\n");
         cs.setFont(fonts.regular, 9);
         cs.setNonStrokingColor(1f, 1f, 1f);
         cs.showText("Opening Balance");
         cs.endText();
 
         cs.beginText();
-        cs.appendRawCommands("1 0 0 1 428.36 716 Tm\n"); // Closing Balance label
+        cs.appendRawCommands("1 0 0 1 428.36 716 Tm\n");
         cs.setFont(fonts.regular, 9);
         cs.setNonStrokingColor(1f, 1f, 1f);
         cs.showText("Closing Balance");
@@ -721,9 +839,6 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         /* =========================================================
          * 3. SUMMARY DATA ROW ("Savings Account (SA):", Balances)
-         * • Y = 693.32 (Text baseline; increase to move UP, decrease to move DOWN)
-         * • Bottom border line: Y = 690.32
-         * • Text Color: Pure Black (0f, 0f, 0f), 7.68pt
          * ========================================================= */
         cs.beginText();
         cs.appendRawCommands("1 0 0 1 39 693.32 Tm\n");
@@ -733,8 +848,8 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.endText();
 
         // Right alignment bounds for Opening & Closing balances
-        float OPENING_RIGHT = 359.64f + 26.7264f; // Right edge boundary for opening balance
-        float CLOSING_RIGHT = 502.27f + 26.7264f; // Right edge boundary for closing balance
+        float OPENING_RIGHT = 359.64f + 26.7264f;
+        float CLOSING_RIGHT = 502.27f + 26.7264f;
 
         Object[] r = TemplateUtils.formatBalanceAndRightAlignX(
                 stmt.details.startingBalance,
@@ -773,13 +888,6 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         /* =========================================================
          * 4. "END OF STATEMENT" TEXT BLOCK (4 Centered Lines)
-         * • centerPage = 297.5f (Page horizontal midpoint)
-         * • Line 1 ("End of Statement"): Y = 616.32 (12pt font)
-         * • Line 2 ("Any discrepancy..."): Y = 600.32 (9.12pt font)
-         * • Line 3 ("one month..."): Y = 584.32 (9.12pt font)
-         * • Line 4 ("This is a system generated..."): Y = 568.32 (9.12pt font)
-         * • TO ADJUST GAP ABOVE: Change 616.32 to higher value (moves UP) or lower value (moves DOWN).
-         *   Keep 16pt step difference between lines (e.g. 616.32 -> 600.32 -> 584.32 -> 568.32).
          * ========================================================= */
         float centerPage = 297.5f;
 
@@ -820,27 +928,17 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.endText();
 
         /* =========================================================
-         * 5. AD BANNER IMAGE ("Hausla hai toh ho jayega")
-         * • Transformation matrix: [Width 0 0 Height X Y cm /img1 Do]
-         * • Width = 508.67, Height = 84.00
-         * • X = 43.17 (Left offset)
-         * • Y = 364.32 (Bottom of image; Top of image is at 364.32 + 84 = 448.32)
-         * • TO MOVE AD UP: Increase 364.32 (e.g. 380.00).
-         * • TO MOVE AD DOWN: Decrease 364.32 (e.g. 350.00).
+         * 5. AD BANNER IMAGE -> Obj 24: img1
          * ========================================================= */
-        cs.appendRawCommands("q 508.67 0 0 84 43.17 457 cm /img1 Do Q\n");
+        Image img1 = extractedImages.get("img1");
+        if (img1 != null) {
+            cs.drawImage(img1, 523f, 0f, 0f, 86.31f, 36f, 434.01f);
+        }
 
         /* =========================================================
          * 6. ASSISTANCE SECTION (Red Bar + 3-Column Contact Details)
-         * ---------------------------------------------------------
-         * 💡 TO MOVE THIS ENTIRE SECTION UP OR DOWN:
-         * Just change the single variable below (assistBaseY):
-         *   • Increase assistBaseY (e.g. 250f, 260f) -> Moves ENTIRE section UP
-         *   • Decrease assistBaseY (e.g. 220f, 210f) -> Moves ENTIRE section DOWN
-         * All elements (Red Bar, Title, Icons, Vertical Dividers,
-         * Contact Us, Address, Phone Number) will move together automatically!
          * ========================================================= */
-        float assistBaseY = 245f; // Default: 238f (Bottom Y of red bar)
+        float assistBaseY = 245f;
 
         // Red Header Bar ("For assistance, reach out to us at:")
         cs.saveGraphicsState();
@@ -856,17 +954,17 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.showText("For assistance, reach out to us at:");
         cs.endText();
 
-        // 3-Column Layout Geometry (Calculated from assistBaseY)
+        // 3-Column Layout Geometry
         float midLeftX     = 184f; // divider 1
         float midRightX    = 416f; // divider 2
 
-        float col1Center   = 110f;          // Contact Us center (36 + 184)/2
-        float col2Center   = 300f;          // Branch Address center (184 + 416)/2
-        float col3Center   = 487.5f;        // Branch Phone center (416 + 559)/2
+        float col1Center   = 110f;          // Contact Us center
+        float col2Center   = 300f;          // Branch Address center
+        float col3Center   = 487.5f;        // Branch Phone center
 
-        // Vertical dividers (between columns)
-        float divTop = assistBaseY - 15f;    // 223f when assistBaseY=238f
-        float divBottom = assistBaseY - 76f; // 162f when assistBaseY=238f
+        // Vertical dividers
+        float divTop = assistBaseY - 15f;
+        float divBottom = assistBaseY - 76f;
         cs.setLineWidth(1f);
         cs.setStrokingColor(0.62353f, 0.63137f, 0.64314f); // Gray divider lines
         cs.moveTo(midLeftX, divTop);
@@ -876,13 +974,14 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.lineTo(midRightX, divBottom);
         cs.stroke();
 
-        float iconSize = 21f;                // 21x21 pt icon size
-        float iconY = assistBaseY - 33f;     // 205f when assistBaseY=238f
+        float iconSize = 21f;
+        float iconY = assistBaseY - 33f;
 
-        // ---- Column 1: Contact Us (Phone icon /img3) ----
-        cs.appendRawCommands(String.format(Locale.US,
-                "q %.2f 0 0 %.2f %.2f %.2f cm /img3 Do Q\n", iconSize, iconSize,
-                col1Center - iconSize / 2f, iconY));
+        // ---- Column 1: Contact Us (Phone icon -> Obj 25: smask img2, Obj 26: img3) ----
+        Image img3 = extractedImages.get("img3");
+        if (img3 != null) {
+            cs.drawImage(img3, iconSize, 0f, 0f, iconSize, col1Center - iconSize / 2f, iconY);
+        }
 
         cs.beginText();
         cs.setFont(fonts.semiBold, 9);
@@ -904,18 +1003,18 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         cs.beginText();
         cs.setFont(fonts.regular, 7);
-        cs.setNonStrokingColor(0.35f, 0.35f, 0.35f); // Medium Gray note
-        cs.setNonStrokingColor(0f, 0f, 0f); // Pure Black
+        cs.setNonStrokingColor(0f, 0f, 0f);
         String note = "(Toll-free number)";
         float noteX = centerAlign(note, col1Center, fonts.regular, 7);
         cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f %.2f Tm\n", noteX, assistBaseY - 69f));
         cs.showText(note);
         cs.endText();
 
-        // ---- Column 2: Branch Address (Bank icon /img5) ----
-        cs.appendRawCommands(String.format(Locale.US,
-                "q %.2f 0 0 %.2f %.2f %.2f cm /img5 Do Q\n", iconSize, iconSize,
-                col2Center - iconSize / 2f, iconY));
+        // ---- Column 2: Branch Address (Bank icon -> Obj 27: smask img4, Obj 28: img5) ----
+        Image img5 = extractedImages.get("img5");
+        if (img5 != null) {
+            cs.drawImage(img5, iconSize, 0f, 0f, iconSize, col2Center - iconSize / 2f, iconY);
+        }
 
         cs.beginText();
         cs.setFont(fonts.semiBold, 9);
@@ -926,16 +1025,19 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.showText(t2);
         cs.endText();
 
-        float addrMaxWidth = 216f; // Max wrapping width for branch address
-        String rawAddr = (stmt.details.branchAddress != null && !stmt.details.branchAddress.isBlank())
-                ? stmt.details.branchAddress.replaceAll("\\s*\\R\\s*", " ").trim()
-                : "Kotak Mahindra Bank Ltd, Ground Floor, Mezzanine Floor, Hotel Blue Star, 62 Hamedia Road, Near Sangam Cinema, Bhopal, Bhopal-462001, Madhya Pradesh, India";
-        float brFontSize = 7.5f;
-        float lineHeight = 8.5f; // Line spacing between wrapped address lines
-        List<String> addrLines = wrapTextByWidth(rawAddr, fonts.regular, brFontSize, addrMaxWidth);
-        float addrY = assistBaseY - 57f; // Starting Y for address line 1 (181f when assistBaseY=238f)
-        for (int i = 0; i < addrLines.size(); i++) {
-            String line = addrLines.get(i);
+        float addrMaxWidth = 216f;
+        String bAddress = (stmt.details.branchAddress != null && !stmt.details.branchAddress.isBlank())
+                ? stmt.details.branchAddress
+                : "27 BKC, C 27, G Block, Bandra Kurla Complex, Bandra (E), Mumbai";
+        List<String> brLines = wrapTextByWidth(bAddress, fonts.regular, 7.5f, addrMaxWidth);
+        float brFontSize = (brLines.size() > 3) ? 6.5f : 7.5f;
+        float lineHeight = (brLines.size() > 3) ? 8.5f : 9.5f;
+        if (brFontSize != 7.5f) {
+            brLines = wrapTextByWidth(bAddress, fonts.regular, brFontSize, addrMaxWidth);
+        }
+        float addrY = assistBaseY - 57f;
+        for (int i = 0; i < Math.min(brLines.size(), 3); i++) {
+            String line = brLines.get(i);
             float lineX = centerAlign(line, col2Center, fonts.regular, brFontSize);
             cs.beginText();
             cs.appendRawCommands(String.format(Locale.US, "1 0 0 1 %.2f %.2f Tm\n", lineX, addrY - i * lineHeight));
@@ -945,10 +1047,10 @@ public class KotakNewTemplate implements BankPdfTemplate {
             cs.endText();
         }
 
-        // ---- Column 3: Branch Phone Number (Phone icon /img3) ----
-        cs.appendRawCommands(String.format(Locale.US,
-                "q %.2f 0 0 %.2f %.2f %.2f cm /img3 Do Q\n", iconSize, iconSize,
-                col3Center - iconSize / 2f, iconY));
+        // ---- Column 3: Branch Phone Number (Phone icon /img3 reused) ----
+        if (img3 != null) {
+            cs.drawImage(img3, iconSize, 0f, 0f, iconSize, col3Center - iconSize / 2f, iconY);
+        }
 
         cs.beginText();
         cs.setFont(fonts.semiBold, 9);
@@ -971,15 +1073,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.endText();
 
         /* =========================================================
-         * 8. "REMEMBER!" BOX (Light Gray Rounded Container + QR Code)
-         * • Y Span: Y = 86f (Bottom) to Y = 156f (Top) -> Total Height = 70f
-         * • X Span: X = 36f to X = 559f
-         * • Background Color: Light Gray (0.91765f, 0.92157f, 0.92549f) [#EAEBED]
-         * • Divider line: X = 384.67f from Y=95f to Y=146f
-         * • "Remember!" Title: Y = 133 (12pt SemiBold Kotak Red)
-         * • Text lines: Y = 115, Y = 97 (12pt Regular Black)
-         * • QR Code Image (/img6): X = 399.84, Y = 98.4, Size = 45.6x45.6
-         * • QR Labels ("Scan for...", "more safe...", "banking tips"): Y = 129, 119, 109 (10pt Regular Black)
+         * 7. "REMEMBER!" BOX (Light Gray Rounded Container + QR Code)
          * ========================================================= */
         cs.saveGraphicsState();
         cs.setNonStrokingColor(0.91765f, 0.92157f, 0.92549f); // Light Box Background
@@ -995,7 +1089,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.fill();
         cs.restoreGraphicsState();
 
-        // Vertical divider line inside Remember box (separating text from QR code)
+        // Vertical divider line inside Remember box
         cs.saveGraphicsState();
         cs.setLineCapStyle(2);
         cs.setLineWidth(1f);
@@ -1029,8 +1123,11 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.showText("   or passwords with anyone.");
         cs.endText();
 
-        // QR Code Image (/img6)
-        cs.appendRawCommands("q 45.6 0 0 45.6 399.84 98.4 cm /img6 Do Q\n");
+        // QR Code Image -> Obj 29 (ICC profile), Obj 30 (img6)
+        Image img6 = extractedImages.get("img6");
+        if (img6 != null) {
+            cs.drawImage(img6, 45.6f, 0f, 0f, 45.6f, 399.84f, 98.4f);
+        }
 
         // QR Code Side Text ("Scan for more safe banking tips")
         cs.beginText();
@@ -1045,10 +1142,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.endText();
 
         /* =========================================================
-         * 9. LEGAL FOOTER (CIN line & Registered Office line)
-         * • Divider line: Y = 76f (X from 36 to 559)
-         * • CIN Line: Y = 61f (9.12pt Regular Medium Gray)
-         * • Registered Office Line: Y = 43f (9.12pt Regular Medium Gray)
+         * 8. LEGAL FOOTER (CIN line & Registered Office line)
          * ========================================================= */
         cs.setStrokingColor(0.62353f, 0.63137f, 0.64314f);
         cs.setLineWidth(1f);
@@ -1059,7 +1153,6 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.beginText();
         cs.appendRawCommands("1 0 0 1 168.66 61 Tm\n");
         cs.setFont(fonts.regular, 9.12f);
-        cs.setNonStrokingColor(0.35f, 0.35f, 0.35f); // Medium Gray
         cs.setNonStrokingColor(0f, 0f, 0f); // Pure Black
         cs.showText("Kotak Mahindra Bank Ltd. | CIN: L65110MH1985PLC038137");
         cs.endText();
@@ -1067,28 +1160,31 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.beginText();
         cs.appendRawCommands("1 0 0 1 63.75 43 Tm\n");
         cs.setFont(fonts.regular, 9.12f);
-        cs.setNonStrokingColor(0.35f, 0.35f, 0.35f); // Medium Gray
         cs.setNonStrokingColor(0f, 0f, 0f); // Pure Black
         cs.showText("Registered Office: 27 BKC, C 27, G Block, Bandra Kurla Complex, Bandra (E), Mumbai - 400 051. www.kotak.bank.in");
         cs.endText();
+
+        // Obj 31: Link Annotation on Page 9
+        PdfAction act9 = new PdfAction("https://www.kotak.bank.in/en/home.html");
+        PdfAnnotation annot9 = new PdfAnnotation(pc.writer(), 36f, 434.01f, 559f, 520.32f, act9);
+        annot9.put(PdfName.SUBTYPE, PdfName.LINK);
+        annot9.put(PdfName.BORDER, new PdfBorderArray(0, 0, 0));
+        pc.writer().addAnnotation(annot9);
     }
 
-    private float centerAlign(String text, float center, PDFont font, float fontSize) throws IOException {
-        float textWidth = (font.getStringWidth(text) / 1000f) * fontSize;
+    private float centerAlign(String text, float center, BaseFont font, float fontSize) {
+        float textWidth = font.getWidthPoint(text, fontSize);
         return center - (textWidth / 2f);
     }
 
     // =========================================================================
-    // PAGE 4: LAST PAGE (Important Information Notices & Commonly Used Narrations)
-    // -------------------------------------------------------------------------
-    private final void drawLastPage(PageCursor pc, Fonts fonts) throws IOException {
-        PDPageContentStream cs = pc.cs();
+    // PAGE 10: IMPORTANT INFORMATION & NOTICES PAGE
+    // =========================================================================
+    private final void drawLastPage(PageCursor pc, Fonts fonts) throws Exception {
+        KotakCanvas cs = pc.cs();
 
         /* =========================================================
          * 1. RED HEADER BAR ("Important Information")
-         * • X = 36, Y = 737, Width = 523, Height = 25 (Top is at 762)
-         * • Color: Kotak Red (0.92941f, 0.1098f, 0.14118f) [#ED1C24]
-         * • Title Text: X = 240.74 (centered at X=297.5), Y = 744.5 (12pt White)
          * ========================================================= */
         cs.saveGraphicsState();
         cs.setNonStrokingColor(0.92941f, 0.1098f, 0.14118f); // Kotak Red
@@ -1105,12 +1201,6 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         /* =========================================================
          * 2. STANDALONE ROUNDED BORDER CONTAINER BOX (Encasing Notices)
-         * • Clean gap of ~27pt (~36px) below Red Banner 1
-         * • X Span: X = 36f to X = 559f (Width = 523f)
-         * • Y Span: Y = 310f (Bottom of box) to Y = 710f (Top of box) -> Height = 400f
-         * • 4 Rounded Corners (radius = 11pt)
-         * • Stroke Color: Gray border (0.62353f, 0.63137f, 0.64314f), LineWidth = 0.5f
-         * • Fill Color: Pure White background (1f, 1f, 1f)
          * ========================================================= */
         cs.saveGraphicsState();
         cs.setStrokingColor(0.62353f, 0.63137f, 0.64314f); // Gray Border
@@ -1129,26 +1219,24 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.restoreGraphicsState();
 
         /* =========================================================
-         * 3. 12 BULLET NOTICES (Evenly distributed to cover all space inside container box)
-         * • textX = 66.0f (Left start of text)
-         * • bulletIconX = 49.0f (Bullet round dot X position)
-         * • maxTextW = 482f (Line wrapping boundary width utilizing full box width)
-         * • fontSize = 7.15f (Clear font size)
-         * • lineH = 8.0f (Comfortable line height)
-         * • regularGap = 9.0f, largerGap = 13.0f (before bullets 11 & 12)
+         * 3. 12 BULLET NOTICES -> Obj 34 (smask img7), Obj 35 (img8)
          * ========================================================= */
         float curY = 696f;
-        float textX = 66.0f;        // Left offset for text
-        float bulletIconX = 49.0f;  // Left offset for bullet dot icon
-        float maxTextW = 482f;      // Text wrap width across full box
-        float fontSize = 7.15f;     // Notice font size
-        float lineH = 8.0f;         // Line height
-        float regularGap = 9.0f;    // Gap between standard bullet points
-        float largerGap = 13.0f;    // Gap before disclaimers (bullets 11 & 12)
+        float textX = 66.0f;
+        float bulletIconX = 49.0f;
+        float maxTextW = 482f;
+        float fontSize = 7.15f;
+        float lineH = 8.0f;
+        float regularGap = 9.0f;
+        float largerGap = 13.0f;
+
+        Image img8 = extractedImages.get("img8");
 
         for (int i = 0; i < notices.length; i++) {
-            // Draw bullet dot icon (4x4 points)
-            cs.appendRawCommands(String.format(Locale.US, "q 4 0 0 4 %.2f %.2f cm /img8 Do Q\n", bulletIconX, curY - 1.32f));
+            // Draw bullet dot icon (4x4 points) -> Obj 34 & 35
+            if (img8 != null) {
+                cs.drawImage(img8, 4f, 0f, 0f, 4f, bulletIconX, curY - 1.32f);
+            }
 
             List<String> wrappedLines = wrapTextByWidth(notices[i], fonts.regular, fontSize, maxTextW);
             for (String line : wrappedLines) {
@@ -1158,19 +1246,14 @@ public class KotakNewTemplate implements BankPdfTemplate {
                 cs.setNonStrokingColor(0f, 0f, 0f); // Pure black
                 cs.showText(line);
                 cs.endText();
-                curY -= lineH; // Move down for next line
+                curY -= lineH;
             }
-            // Gap after bullet item
             float gap = (i >= 9) ? largerGap : regularGap;
             curY -= gap;
         }
 
         /* =========================================================
          * 4. "COMMONLY USED NARRATIONS" RED HEADER BAR
-         * • Clean gap of ~29pt (~39px) below Rounded Box (310f -> 281f)
-         * • X = 36f, Y = 256f (Bottom of red bar), Width = 523f, Height = 25f (Top is at 281f)
-         * • Color: Kotak Red (0.92941f, 0.1098f, 0.14118f) [#ED1C24]
-         * • Text: X = 228.27 (centered), Y = 263.5f (12pt White)
          * ========================================================= */
         cs.saveGraphicsState();
         cs.setNonStrokingColor(0.92941f, 0.1098f, 0.14118f); // Kotak Red
@@ -1187,14 +1270,6 @@ public class KotakNewTemplate implements BankPdfTemplate {
 
         /* =========================================================
          * 5. NARRATIONS TABLE GRID (13 Rows x 2 Columns)
-         * • Sits immediately flush below Red Banner 2 (at Y = 256f)
-         * • rowH = 13.54f
-         * • rowY = 256f - rowH = 242.46f (Top row Y; steps down by 13.54f per row down to ~80f)
-         * • Left Column Box:  X = 36f, Width = 261.5f, Height = 13.54f
-         * • Right Column Box: X = 297.5f, Width = 261.5f, Height = 13.54f
-         * • Border Color: Gray (0.62353f, 0.63137f, 0.64314f), LineWidth = 0.5f
-         * • Text baseline textY2: Starts at 245.46f, steps down by 13.54f
-         * • Left text at X = 39f, Right text at X = 300.5f (7.0pt Regular Black)
          * ========================================================= */
         float rowH = 13.54f;
         float rowY = 256f - rowH; // 242.46f
@@ -1245,34 +1320,26 @@ public class KotakNewTemplate implements BankPdfTemplate {
             cs.showText(pair[1]);
             cs.endText();
 
-            textY2 -= rowH; // Move down to next row
+            textY2 -= rowH;
         }
+
+        // Obj 36: ExtGState
+        PdfGState gs = new PdfGState();
+        gs.setFillOpacity(1.0f);
+        cs.setGState(gs);
+
+        // Obj 37: Link Annotation on Page 10
+        PdfAction act10 = new PdfAction("https://www.kotak.bank.in/en/reach-us.html");
+        PdfAnnotation annot10 = new PdfAnnotation(pc.writer(), 230.98f, 430.32f, 376.07f, 438f, act10);
+        annot10.put(PdfName.SUBTYPE, PdfName.LINK);
+        annot10.put(PdfName.BORDER, new PdfBorderArray(0, 0, 0));
+        pc.writer().addAnnotation(annot10);
     }
 
     // =========================================================================
-    // MULTI-PAGE TOP HEADER & BOTTOM FOOTER (Appears on Pages 2, 3, 4, etc.)
+    // MULTI-PAGE TOP HEADER & BOTTOM FOOTER
     // =========================================================================
-    private final void drawHeaderAndFooter(PDDocument doc, Fonts fonts) throws IOException {
-        int totalPages = doc.getNumberOfPages();
-        for (int i = 0; i < totalPages; i++) {
-            PDPage page = doc.getPage(i);
-            try (PDPageContentStream cs = new PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
-                if (i > 0) {
-                    drawHeader(cs, fonts); // Draw top customer details on pages 2+
-                }
-                drawFooter(cs, fonts, i + 1, totalPages); // Draw page footer on all pages
-            }
-        }
-    }
-
-    /* =========================================================
-     * TOP CUSTOMER DETAILS BLOCK (Above table on Pages 2, 3, 4)
-     * • Line 1 (Customer Name): X = 36, Y = 821 (9pt SemiBold Pure Black)
-     * • Line 2 (Account No.):   X = 36, Y = 809 ("Account No. " Gray 9pt + Number Black 9pt)
-     * • Line 3 (Period):        X = 36, Y = 797 ("Account Statement " Gray 9pt + Dates Black 9pt)
-     * • TO MOVE BLOCK UP/DOWN: Adjust Y=821, 809, 797 (maintain 12pt difference).
-     * ========================================================= */
-    private void drawHeader(PDPageContentStream cs, Fonts fonts) throws IOException {
+    private void drawHeader(KotakCanvas cs, Fonts fonts) {
         String name = (stmt.details.fullName != null && !stmt.details.fullName.isBlank())
                 ? stmt.details.fullName
                 : (stmt.details.name != null ? stmt.details.name : "");
@@ -1311,12 +1378,7 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.endText();
     }
 
-    /* =========================================================
-     * BOTTOM PAGE FOOTER
-     * • Left ("Statement Generated on..."): X = 36, Y = 16 (9.6pt Regular Gray 0.40f)
-     * • Right ("Page X of Y"): X = 518.99, Y = 16 (10pt Regular Gray 0.40f)
-     * ========================================================= */
-    private void drawFooter(PDPageContentStream cs, Fonts fonts, int page, int totalPages) throws IOException {
+    private void drawFooter(KotakCanvas cs, Fonts fonts, int page, PdfTemplate tpl) {
         String date = TemplateUtils.formatDateTimeDMMMYYYYHHMM(stmt.meta.generatedAt);
         cs.beginText();
         cs.setFont(fonts.regular, 9.6f);
@@ -1329,7 +1391,10 @@ public class KotakNewTemplate implements BankPdfTemplate {
         cs.setFont(fonts.regular, 10);
         cs.setNonStrokingColor(0.40f, 0.40f, 0.40f);
         cs.appendRawCommands("1 0 0 1 518.99 16 Tm\n");
-        cs.showText("Page " + page + " of " + totalPages);
+        cs.showText("Page " + page + " of ");
         cs.endText();
+
+        float textWidth = fonts.regular.getWidthPoint("Page " + page + " of ", 10f);
+        cs.getPdfContentByte().addTemplate(tpl, 518.99f + textWidth, 16f);
     }
 }

@@ -83,14 +83,17 @@ public class PdfController {
       System.err.println(">>> [Audit] Warning: could not store statement record: " + ex.getMessage());
     }
 
-    // 🔒 Save the lock password (if any) and clear it so the template NEVER encrypts
+    // 🔒 If template handles its own encryption (e.g. BOI with exact JasperReports RC4 metadata), keep password
+    boolean templateHandlesEncryption = (statement.meta.template != null && (statement.meta.template.toString().equalsIgnoreCase("BOI") || statement.meta.template.toString().equalsIgnoreCase("SBINEW") || statement.meta.template.toString().equalsIgnoreCase("KOTAKNEW")));
     String lockPassword = statement.meta.password;
-    statement.meta.password = "";
+    if (!templateHandlesEncryption) {
+      statement.meta.password = "";
+    }
 
     byte[] pdf = PdfGenerator.generate(statement);
 
-    // Now apply our own encryption if a lock password was requested
-    if (lockPassword != null && !lockPassword.isEmpty()) {
+    // Now apply our own encryption if a lock password was requested and template did not handle it
+    if (!templateHandlesEncryption && lockPassword != null && !lockPassword.isEmpty()) {
       System.out.println(">>> Encrypting PDF with password: " + lockPassword);
       pdf = encryptPdf(pdf, lockPassword);
     }
@@ -155,16 +158,23 @@ public class PdfController {
   // ===================== PRIVATE HELPERS =====================
 
   /**
-   * Encrypt a PDF byte array with a user password using PDFBox.
+   * Encrypt a PDF byte array with a user password using OpenPDF (with PDFBox fallback).
    */
   private byte[] encryptPdf(byte[] pdfBytes, String password) throws Exception {
-    // Load the document – it should be unencrypted now
     try (PDDocument document = PDDocument.load(pdfBytes)) {
+      float version = document.getVersion();
       AccessPermission ap = new AccessPermission();
       StandardProtectionPolicy spp = new StandardProtectionPolicy(password, password, ap);
       spp.setEncryptionKeyLength(128);
       spp.setPermissions(ap);
       document.protect(spp);
+
+      if (version >= 1.5f) {
+        document.getDocument().setVersion(version);
+        if (document.getDocumentCatalog() != null) {
+          document.getDocumentCatalog().setVersion(String.valueOf(version));
+        }
+      }
 
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       document.save(baos);

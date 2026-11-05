@@ -48,8 +48,36 @@ public class HdfcOcrTest {
                 System.out.println("Period Start: " + result.statementPeriodStart);
                 System.out.println("Period End: " + result.statementPeriodEnd);
                 System.out.println("Opening Balance: " + result.openingBalance);
-                System.out.println("Closing Balance: " + result.closingBalance);
             }
+        }
+    }
+
+    @Test
+    void testUploadedHdfcPdf() throws Exception {
+        java.io.File file = new java.io.File("C:/Users/real/Downloads/179023868395862I2WSjxfITY.pdf");
+        if (!file.exists()) {
+            System.out.println("User uploaded HDFC file not found");
+            return;
+        }
+        try (PDDocument doc = PDDocument.load(file)) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setStartPage(1);
+            stripper.setEndPage(Math.min(2, doc.getNumberOfPages()));
+            String text = stripper.getText(doc);
+
+            System.out.println("=== UNSORTED TEXT FROM UPLOADED PDF (START) ===");
+            System.out.println(text.length() > 1500 ? text.substring(0, 1500) : text);
+            System.out.println("=== UNSORTED TEXT FROM UPLOADED PDF (END) ===");
+
+            OcrResult result = OcrProcessingService.process(text);
+            org.junit.jupiter.api.Assertions.assertEquals("HDFCCURRENT", result.bankName);
+            org.junit.jupiter.api.Assertions.assertEquals("M/S. TALHA ENTERPRISES", result.name);
+            org.junit.jupiter.api.Assertions.assertEquals("50200115012821", result.accountNumber);
+            org.junit.jupiter.api.Assertions.assertEquals("338318140", result.customerRelNo);
+            org.junit.jupiter.api.Assertions.assertEquals("MAHWA", result.branch);
+            org.junit.jupiter.api.Assertions.assertEquals("HDFC0009689", result.ifsc);
+            org.junit.jupiter.api.Assertions.assertEquals("321240004", result.micr);
+            org.junit.jupiter.api.Assertions.assertTrue(result.address.contains("BHARATPUR ROAD"));
         }
     }
 }

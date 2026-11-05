@@ -9,6 +9,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import com.lowagie.text.pdf.BaseFont;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 
 public final class TemplateUtils {
@@ -97,6 +98,18 @@ public final class TemplateUtils {
     ) throws IOException {
         String formatted = formatIndianAmount(balance);
         float textWidth = (font.getStringWidth(formatted) / 1000f) * fontSize;
+        float x = rightEdge - textWidth;
+        return new Object[] { formatted, x };
+    }
+
+    public static Object[] formatBalanceAndRightAlignX(
+            double balance,
+            BaseFont font,
+            float fontSize,
+            float rightEdge
+    ) {
+        String formatted = formatIndianAmount(balance);
+        float textWidth = font.getWidthPoint(formatted, fontSize);
         float x = rightEdge - textWidth;
         return new Object[] { formatted, x };
     }

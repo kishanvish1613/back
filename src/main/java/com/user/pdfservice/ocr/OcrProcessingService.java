@@ -26,7 +26,7 @@ public class OcrProcessingService {
         }
 
         // 2. Bank-specific parsing
-        if (r.bankName.equalsIgnoreCase("SBI") || r.bankName.equalsIgnoreCase("SBINEW")) {
+        if (r.bankName.equalsIgnoreCase("SBI") || r.bankName.equalsIgnoreCase("SBINEW") || r.bankName.equalsIgnoreCase("SBI2")) {
             extractSbiFieldsLineByLine(r, cleaned);
         } else if (r.bankName.equalsIgnoreCase("UNIONBANK")) {
             extractUnionBankFields(r, cleaned);
@@ -38,31 +38,178 @@ public class OcrProcessingService {
             extractBoiFields(r, cleaned);
         } else if (r.bankName.equalsIgnoreCase("AU")) {
             extractAuFields(r, cleaned);
-        } else {
-            r.branchAddress = BranchAddressExtractor.extract(cleaned, r.bankName);
-            r.micr = extractMICR(cleaned);
-            r.pincode = AddressUtils.extractPincode(r.branchAddress);
-            r.address = AddressExtractor.extract(cleaned, r.bankName);
-            r.accountType = extractAccountType(cleaned, r.bankName);
-            r.branchPhoneNo = extractBranchPhone(cleaned, r.bankName);
-            r.branch = BranchExtractor.extract(cleaned, r.bankName);
-            r.customerRelNo = extractCrn(cleaned);
-            r.email = extractEmail(cleaned);
-            r.phoneNumber = extractPhone(cleaned);
+        } else if (r.bankName.equalsIgnoreCase("AXIS")) {
+            extractAxisFields(r, cleaned);
         }
 
         // 3. Fallbacks for unassigned core fields
-        if (r.name == null || r.name.isBlank()) {
+        if (isEmpty(r.name)) {
             r.name = NameExtractor.extract(cleaned, r.bankName);
         }
-        if (r.accountNumber == null || r.accountNumber.isBlank()) {
+        if (isEmpty(r.accountNumber)) {
             r.accountNumber = AccountExtractor.extract(cleaned, r.bankName);
         }
-        if (r.ifsc == null || r.ifsc.isBlank()) {
+        if (isEmpty(r.ifsc)) {
             r.ifsc = IfscExtractor.extract(cleaned);
         }
+        if (isEmpty(r.micr)) {
+            r.micr = extractMICR(cleaned);
+        }
+        if (isEmpty(r.branch)) {
+            r.branch = BranchExtractor.extract(cleaned, r.bankName);
+        }
+        if (isEmpty(r.branchAddress)) {
+            r.branchAddress = BranchAddressExtractor.extract(cleaned, r.bankName);
+        }
+        if (isEmpty(r.address)) {
+            r.address = AddressExtractor.extract(cleaned, r.bankName);
+        }
+        if (isEmpty(r.pincode)) {
+            r.pincode = AddressUtils.extractPincode(r.address != null ? r.address : (r.branchAddress != null ? r.branchAddress : cleaned));
+        }
+        if (isEmpty(r.city)) {
+            r.city = extractCityFromAddress(r.address != null ? r.address : r.branchAddress);
+        }
+        if (isEmpty(r.state)) {
+            r.state = extractStateFromAddress(r.address != null ? r.address : r.branchAddress);
+        }
+        if (isEmpty(r.country)) {
+            r.country = "INDIA";
+        }
+        if (isEmpty(r.accountType)) {
+            r.accountType = extractAccountType(cleaned, r.bankName);
+        }
+        if (isEmpty(r.customerRelNo)) {
+            r.customerRelNo = extractCrn(cleaned);
+        }
+        if (isEmpty(r.email)) {
+            r.email = extractEmail(cleaned);
+            if (r.email != null) r.email = r.email.toLowerCase();
+        }
+        if (isEmpty(r.phoneNumber)) {
+            r.phoneNumber = extractPhone(cleaned);
+        }
+
+        // 4. Universal Transaction Balances & Period Fallback
+        extractUniversalBalancesAndPeriods(r, cleaned);
 
         return r;
+    }
+
+    // ==================== AXIS EXTRACTION ====================
+    private static void extractAxisFields(OcrResult r, String text) {
+        String[] lines = text.split("\\r?\\n");
+        r.bankName = "AXIS";
+
+        // 1. Customer Name
+        r.name = NameExtractor.extractAxis(text);
+        if (isEmpty(r.name)) {
+            for (int i = 0; i < lines.length; i++) {
+                if (lines[i].toLowerCase().contains("joint holder")) {
+                    for (int j = i - 1; j >= 0; j--) {
+                        String cand = lines[j].trim();
+                        if (!cand.isEmpty() && !cand.toLowerCase().contains("legends") && !cand.toLowerCase().contains("statement")) {
+                            r.name = cand;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        System.out.println("DEBUG: Axis Name = " + r.name);
+
+        // 2. Account Number
+        Matcher mAcc = Pattern.compile("(?i)Statement\\s+of\\s+Axis\\s+Account\\s+No\\s*[:\\-]?\\s*([0-9]{12,18})").matcher(text);
+        if (mAcc.find()) {
+            r.accountNumber = mAcc.group(1).trim();
+        } else {
+            Matcher mAcc2 = Pattern.compile("(?i)Account\\s*(?:No\\.?|Number)\\s*[:\\-]?\\s*([0-9]{12,18})").matcher(text);
+            if (mAcc2.find()) r.accountNumber = mAcc2.group(1).trim();
+        }
+        System.out.println("DEBUG: Axis Account Number = " + r.accountNumber);
+
+        // 3. Customer ID
+        Matcher mCust = Pattern.compile("(?i)Customer\\s*ID\\s*[:\\-]?\\s*([0-9]+)").matcher(text);
+        if (mCust.find()) {
+            r.customerRelNo = mCust.group(1).trim();
+            r.crn = r.customerRelNo;
+        }
+
+        // 4. IFSC & MICR
+        Matcher mIfsc = Pattern.compile("(?i)IFSC\\s*(?:Code)?\\s*[:\\-]?\\s*(UTIB[A-Z0-9]{7})").matcher(text);
+        if (mIfsc.find()) r.ifsc = mIfsc.group(1).trim();
+
+        Matcher mMicr = Pattern.compile("(?i)MICR\\s*(?:Code)?\\s*[:\\-]?\\s*([0-9]{9})").matcher(text);
+        if (mMicr.find()) r.micr = mMicr.group(1).trim();
+
+        // 5. Account Type / Scheme
+        Matcher mScheme = Pattern.compile("(?i)Scheme\\s*[:\\-]?\\s*([^:\\r\\n]+?)(?=\\s*CKYC|\\r|\\n|$)").matcher(text);
+        if (mScheme.find()) {
+            r.accountType = mScheme.group(1).trim();
+        } else {
+            r.accountType = "PRESTIGE SAVINGS ACCOUNT";
+        }
+
+        // 6. Nominee
+        Matcher mNom = Pattern.compile("(?i)Nominee\\s*Registered\\s*[:\\-]?\\s*([A-Za-z]+)").matcher(text);
+        if (mNom.find()) r.nomineeName = mNom.group(1).trim();
+
+        // 7. Mobile & Email
+        Matcher mMob = Pattern.compile("(?i)Registered\\s*Mobile\\s*(?:No\\.?)?\\s*[:\\-]?\\s*([0-9xX]{10,12})").matcher(text);
+        if (mMob.find()) r.phoneNumber = mMob.group(1).trim();
+
+        Matcher mEmail = Pattern.compile("(?i)Registered\\s*Email\\s*(?:ID)?\\s*[:\\-]?\\s*([A-Za-z0-9._%+-xX]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})").matcher(text);
+        if (mEmail.find()) r.email = mEmail.group(1).trim().toLowerCase();
+
+        // 8. PAN & CKYCR
+        Matcher mPan = Pattern.compile("(?i)PAN\\s*[:\\-]?\\s*([A-Z]{5}[0-9]{4}[A-Z])").matcher(text);
+        if (mPan.find()) r.pan = mPan.group(1).trim();
+
+        Matcher mCkyc = Pattern.compile("(?i)CKYC\\s*(?:NUMBER|No\\.?)?\\s*[:\\-]?\\s*([0-9xX]{14})").matcher(text);
+        if (mCkyc.find()) r.ckycr = mCkyc.group(1).trim();
+
+        // 9. Statement Period
+        Matcher mPeriod = Pattern.compile(
+                "(?:From\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})\\s+To\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}))",
+                Pattern.CASE_INSENSITIVE
+        ).matcher(text);
+        if (mPeriod.find()) {
+            r.statementPeriodStart = normalizeDateString(mPeriod.group(1).trim());
+            r.statementPeriodEnd   = normalizeDateString(mPeriod.group(2).trim());
+            System.out.println("DEBUG: Axis Period = " + r.statementPeriodStart + " to " + r.statementPeriodEnd);
+        }
+
+        // 10. Opening Balance
+        Matcher mOpen = Pattern.compile("(?i)OPENING\\s+BALANCE\\s+([0-9,]+(?:\\.[0-9]{2})?)").matcher(text);
+        if (mOpen.find()) {
+            r.openingBalance = mOpen.group(1).replace(",", "").trim();
+            System.out.println("DEBUG: Axis Opening Balance = " + r.openingBalance);
+        }
+
+        // 11. Branch Address & Branch Name
+        Matcher mBrAddr = Pattern.compile(
+                "(?is)BRANCH\\s+ADDRESS\\s*[:\\-]?\\s*(AXIS\\s+BANK\\s+LTD[^\n]+(?:\n[^\n]+){0,4}?)(?=\\s*TEL\\s*:|\\s*Registered\\s+Office|\\s*Opening\\s+Hours|\\r|\\n|$)"
+        ).matcher(text);
+        if (mBrAddr.find()) {
+            r.branchAddress = mBrAddr.group(1).replaceAll("\\r?\\n", ", ").replaceAll("[ \t]+", " ").replaceAll(",\\s*,", ",").trim();
+            Matcher mBrName = Pattern.compile("(?i)AXIS\\s+BANK\\s+LTD,\\s*([A-Za-z0-9\\s\\-]+?),").matcher(r.branchAddress);
+            if (mBrName.find()) {
+                r.branch = mBrName.group(1).trim();
+            } else {
+                r.branch = "HAMIDIA ROAD, BHOPAL";
+            }
+        }
+        if (isEmpty(r.branch)) {
+            r.branch = "HAMIDIA ROAD, BHOPAL";
+        }
+        System.out.println("DEBUG: Axis Branch = " + r.branch);
+
+        // 12. Customer Address
+        r.address = AddressExtractor.extract(text, "AXIS");
+        if (r.address != null) {
+            r.pincode = AddressUtils.extractPincode(r.address);
+        }
     }
 
     // ==================== HDFC EXTRACTION ====================
@@ -94,58 +241,52 @@ public class OcrProcessingService {
         }
 
         // 2. Full Name / Entity Name
-        for (int i = 0; i < lines.length; i++) {
-            String lineLower = lines[i].toLowerCase();
-            if (lineLower.contains("statement of account") || lineLower.contains("page no")) {
-                for (int j = i + 1; j < lines.length && j <= i + 4; j++) {
-                    String candidate = lines[j].trim();
-                    if (!candidate.isEmpty() 
-                            && !candidate.toLowerCase().contains("statement") 
-                            && !candidate.toLowerCase().contains("page no")
-                            && !candidate.toLowerCase().contains("hdfc bank")
-                            && !candidate.toLowerCase().startsWith("from ")
-                            && !candidate.toLowerCase().startsWith("statement from")) {
-                        r.name = candidate;
-                        System.out.println("DEBUG: HDFC Entity/Customer Name = " + r.name);
-                        break;
-                    }
-                }
-                if (r.name != null && !r.name.isBlank()) break;
+        r.name = NameExtractor.extractHdfc(text);
+        if (isEmpty(r.name)) {
+            Matcher mEntity = Pattern.compile("(?im)^\\s*(M/S\\.?\\s+[A-Za-z0-9\\s.&'-]+?)(?=\\s*(?:City|State|Address|Account|Phone|Cust|A/C|RTGS|IFSC|MICR|OD|Currency|Email|\\d{6}|\\r|\\n|$))").matcher(text);
+            if (mEntity.find()) {
+                r.name = mEntity.group(1).trim();
             }
         }
-        if (r.name == null || r.name.isBlank()) {
-            r.name = extractFullNameForSbi(text, "HDFC");
-        }
+        System.out.println("DEBUG: HDFC Entity/Customer Name = " + r.name);
 
         // 3. Customer Address & Pincode
-        boolean captureAddr = false;
-        StringBuilder addrBuilder = new StringBuilder();
-        for (String line : lines) {
-            String trimmed = line.trim();
-            if (r.name != null && trimmed.equalsIgnoreCase(r.name)) {
-                captureAddr = true;
-                continue;
+        r.address = AddressExtractor.extractHdfc(text);
+        if (isEmpty(r.address) && r.name != null && !r.name.isBlank()) {
+            boolean captureAddr = false;
+            StringBuilder addrBuilder = new StringBuilder();
+            for (String line : lines) {
+                String trimmed = line.trim();
+                if (!captureAddr && (trimmed.equalsIgnoreCase(r.name) || trimmed.startsWith(r.name))) {
+                    captureAddr = true;
+                    continue;
+                }
+                if (captureAddr) {
+                    if (trimmed.matches("(?i)(?:JOINT\\s+HOLDERS|Nomination|Statement\\s+From|From\\s*:|Account\\s+Status|RTGS|IFSC|MICR|Date\\s+Narration).*")) {
+                        break;
+                    }
+                    String left = trimmed
+                            .replaceAll("(?i)\\s*(?:Phone\\s*no\\.?|OD\\s*Limit|Currency|Email|Cust\\s*ID|Customer\\s*ID|Account\\s*No\\.?|PRIME\\s+POTENTIAL|A/C\\s*Open\\s*Date|Account\\s*Status|RTGS|IFSC|MICR|Branch\\s*Code).*$", "")
+                            .replaceAll("(?i)\\s*\\b(City|State)\\s*:\\s*[A-Za-z\\s]+$", "")
+                            .trim();
+                    if (!left.isEmpty() && !left.equals(".")) {
+                        if (addrBuilder.length() > 0) addrBuilder.append("\n");
+                        addrBuilder.append(left);
+                    }
+                }
             }
-            if (captureAddr) {
-                if (trimmed.matches("(?i)(joint holders|nomination|statement from|from\\s*:|account branch|address\\s*:|city\\s*:|state\\s*:|phone\\s*no).*")) {
-                    break;
-                }
-                if (!trimmed.isEmpty() && !trimmed.equals(".")) {
-                    if (addrBuilder.length() > 0) addrBuilder.append("\n");
-                    addrBuilder.append(trimmed);
-                }
+            if (addrBuilder.length() > 0) {
+                r.address = addrBuilder.toString().trim();
             }
         }
-        r.address = addrBuilder.toString().trim();
         System.out.println("DEBUG: HDFC Customer Address = " + r.address);
 
-        Matcher mPin = Pattern.compile("\\b(\\d{6})\\b").matcher(r.address != null ? r.address : text);
-        if (mPin.find()) {
-            r.pincode = mPin.group(1);
+        if (r.address != null) {
+            r.pincode = AddressUtils.extractPincode(r.address);
         }
 
         // 4. Nomination
-        Matcher mNom = Pattern.compile("(?i)Nomination\\s*[:\\-]?\\s*([A-Za-z\\s]+?)(?=\\s*Statement|\\s*From|\\r|\\n|$)", Pattern.CASE_INSENSITIVE).matcher(text);
+        Matcher mNom = Pattern.compile("(?i)Nomination\\s*[:\\-]?\\s*([A-Za-z\\s]+?)(?=\\s*Account|\\s*Statement|\\s*From|\\r|\\n|$)", Pattern.CASE_INSENSITIVE).matcher(text);
         if (mNom.find()) {
             r.nomineeName = mNom.group(1).trim();
             System.out.println("DEBUG: HDFC Nomination = " + r.nomineeName);
@@ -174,6 +315,13 @@ public class OcrProcessingService {
         Matcher mCity = Pattern.compile("(?i)\\bCity\\s*[:\\-]?\\s*([A-Za-z0-9\\s]+?)(?=\\s*State|\\r|\\n|$)", Pattern.CASE_INSENSITIVE).matcher(text);
         if (mCity.find()) {
             r.city = mCity.group(1).trim();
+            Matcher mCityPin = Pattern.compile("^(.*?)\\s*(\\d{6})$").matcher(r.city);
+            if (mCityPin.find()) {
+                r.city = mCityPin.group(1).trim();
+                if (r.pincode == null || r.pincode.isBlank()) {
+                    r.pincode = mCityPin.group(2).trim();
+                }
+            }
             System.out.println("DEBUG: HDFC City = " + r.city);
         }
 
@@ -203,10 +351,16 @@ public class OcrProcessingService {
                 }
             }
         }
-        if (branchAddrBuilder.length() > 0) {
-            r.branchAddress = branchAddrBuilder.toString().trim();
-            System.out.println("DEBUG: HDFC Branch Address = " + r.branchAddress);
+        if (isEmpty(r.branchAddress)) {
+            r.branchAddress = BranchAddressExtractor.extract(text, "HDFC");
         }
+        if (isEmpty(r.branchAddress) && branchAddrBuilder.length() > 0) {
+            r.branchAddress = branchAddrBuilder.toString().trim();
+        }
+        if (r.branchAddress != null && r.city != null && !r.branchAddress.toLowerCase().contains(r.city.toLowerCase())) {
+            r.branchAddress = r.branchAddress + ", " + r.city;
+        }
+        System.out.println("DEBUG: HDFC Branch Address = " + r.branchAddress);
 
         // 8. Branch Phone No
         Matcher mBranchPhone = Pattern.compile("(?i)Phone\\s*(?:no\\.?)?\\s*[:\\-]?\\s*([0-9/\\-\\s]+?)(?=\\s*OD\\s+Limit|\\s*Currency|\\r|\\n|$)", Pattern.CASE_INSENSITIVE).matcher(text);
@@ -287,14 +441,26 @@ public class OcrProcessingService {
         }
 
         // 18. Opening Balance & Closing Balance
-        Matcher mSummaryOpen = Pattern.compile("(?i)Opening\\s+Balance\\s*[:\\-]?\\s*([0-9,]+\\.\\d{2})").matcher(text);
-        if (mSummaryOpen.find()) {
-            r.openingBalance = mSummaryOpen.group(1).replaceAll(",", "").trim();
+        Matcher mSummaryTable = Pattern.compile(
+                "(?is)STATEMENT\\s+SUMMARY[^\n]*\\n(?:[^\n]*Opening[^\n]*\\n)?\\s*([0-9,]+\\.\\d{2})\\s+\\d+\\s+\\d+\\s+[0-9,.]+\\s+[0-9,.]+\\s+([0-9,]+\\.\\d{2})"
+        ).matcher(text);
+        if (mSummaryTable.find()) {
+            r.openingBalance = mSummaryTable.group(1).replaceAll(",", "").trim();
+            r.closingBalance = mSummaryTable.group(2).replaceAll(",", "").trim();
         }
 
-        Matcher mSummaryClose = Pattern.compile("(?i)Closing\\s+Balance\\s*[:\\-]?\\s*([0-9,]+\\.\\d{2})").matcher(text);
-        if (mSummaryClose.find()) {
-            r.closingBalance = mSummaryClose.group(1).replaceAll(",", "").trim();
+        if (r.openingBalance == null) {
+            Matcher mSummaryOpen = Pattern.compile("(?i)Opening\\s+Balance\\s*[:\\-]?\\s*([0-9,]+\\.\\d{2})").matcher(text);
+            if (mSummaryOpen.find()) {
+                r.openingBalance = mSummaryOpen.group(1).replaceAll(",", "").trim();
+            }
+        }
+
+        if (r.closingBalance == null) {
+            Matcher mSummaryClose = Pattern.compile("(?i)Closing\\s+Bal(?:ance)?\\s*[:\\-]?\\s*([0-9,]+\\.\\d{2})").matcher(text);
+            if (mSummaryClose.find()) {
+                r.closingBalance = mSummaryClose.group(1).replaceAll(",", "").trim();
+            }
         }
 
         if (r.openingBalance == null || r.closingBalance == null) {
@@ -303,14 +469,14 @@ public class OcrProcessingService {
             ).matcher(text);
 
             String firstRowClosing = null;
-            String firstRowWithdrawal = null;
-            String firstRowDeposit = null;
+            String firstRowAmt1 = null;
+            String firstRowAmt2 = null;
             String lastRowClosing = null;
 
             while (mTxRow.find()) {
                 if (firstRowClosing == null) {
-                    firstRowWithdrawal = mTxRow.group(3);
-                    firstRowDeposit = mTxRow.group(4);
+                    firstRowAmt1 = mTxRow.group(3);
+                    firstRowAmt2 = mTxRow.group(4);
                     firstRowClosing = mTxRow.group(5);
                 }
                 lastRowClosing = mTxRow.group(5);
@@ -323,10 +489,16 @@ public class OcrProcessingService {
             if (r.openingBalance == null && firstRowClosing != null) {
                 try {
                     double closeVal = Double.parseDouble(firstRowClosing.replaceAll(",", ""));
-                    double dr = (firstRowWithdrawal != null && !firstRowWithdrawal.isBlank()) ? Double.parseDouble(firstRowWithdrawal.replaceAll(",", "")) : 0.0;
-                    double cr = (firstRowDeposit != null && !firstRowDeposit.isBlank()) ? Double.parseDouble(firstRowDeposit.replaceAll(",", "")) : 0.0;
-                    double calcOpen = closeVal + dr - cr;
-                    r.openingBalance = String.format("%.2f", Math.max(0.0, calcOpen));
+                    if (firstRowAmt1 != null && firstRowAmt2 != null) {
+                        double dr = Double.parseDouble(firstRowAmt1.replaceAll(",", ""));
+                        double cr = Double.parseDouble(firstRowAmt2.replaceAll(",", ""));
+                        r.openingBalance = String.format("%.2f", Math.max(0.0, closeVal + dr - cr));
+                    } else if (firstRowAmt1 != null) {
+                        double amt = Double.parseDouble(firstRowAmt1.replaceAll(",", ""));
+                        double candidateOpenDr = closeVal + amt;
+                        double candidateOpenCr = closeVal - amt;
+                        r.openingBalance = String.format("%.2f", candidateOpenCr >= 0 ? candidateOpenCr : candidateOpenDr);
+                    }
                 } catch (Exception ignored) {}
             }
         }
@@ -748,30 +920,45 @@ public class OcrProcessingService {
         }
 
         // ----- Statement Period -----
-        for (String line : lines) {
-            Matcher m = Pattern.compile(
-                    "Statement\\s+From\\s*:\\s*(\\d{2}-\\d{2}-\\d{4})\\s+to\\s+(\\d{2}-\\d{2}-\\d{4})",
-                    Pattern.CASE_INSENSITIVE
-            ).matcher(line);
-            if (m.find()) {
-                r.statementPeriodStart = m.group(1);
-                r.statementPeriodEnd   = m.group(2);
-                System.out.println("DEBUG: Statement Period = " + r.statementPeriodStart + " to " + r.statementPeriodEnd);
-                break;
+        Matcher mStmtPeriod = Pattern.compile(
+                "(?i)Account\\s+Statement\\s+from\\s+(\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{4})\\s+to\\s+(\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{4})"
+        ).matcher(text);
+        if (mStmtPeriod.find()) {
+            r.statementPeriodStart = normalizeDateString(mStmtPeriod.group(1));
+            r.statementPeriodEnd   = normalizeDateString(mStmtPeriod.group(2));
+            System.out.println("DEBUG: Statement Period (Classic) = " + r.statementPeriodStart + " to " + r.statementPeriodEnd);
+        } else {
+            for (String line : lines) {
+                Matcher m = Pattern.compile(
+                        "Statement\\s+From\\s*:\\s*(\\d{2}-\\d{2}-\\d{4})\\s+to\\s+(\\d{2}-\\d{2}-\\d{4})",
+                        Pattern.CASE_INSENSITIVE
+                ).matcher(line);
+                if (m.find()) {
+                    r.statementPeriodStart = m.group(1);
+                    r.statementPeriodEnd   = m.group(2);
+                    System.out.println("DEBUG: Statement Period = " + r.statementPeriodStart + " to " + r.statementPeriodEnd);
+                    break;
+                }
             }
         }
 
-        // ----- Balances (Clear Balance & Summary) -----
+        // ----- Balances (Clear Balance & Summary & Balance as on) -----
+        Matcher mBalAsOn = Pattern.compile("(?i)Balance\\s+as\\s+on[^:\n]*?[:\\-]?\\s*([0-9,]+\\.\\d{2})").matcher(text);
+        if (mBalAsOn.find()) {
+            r.openingBalance = mBalAsOn.group(1).replace(",", "").trim();
+            System.out.println("DEBUG: SBI Balance as on Opening = " + r.openingBalance);
+        }
+
         Matcher mSummary = Pattern.compile("(?i)Brought\\s+Forward[^\\n]*?\\n\\s*([\\d,]+\\.\\d{2})(?:CR)?\\s+\\d+\\s+\\d+\\s+[\\d,.]+\\s+[\\d,.]+\\s+([\\d,]+\\.\\d{2})(?:CR)?").matcher(text);
         if (mSummary.find()) {
-            r.openingBalance = mSummary.group(1).replace(",", "").trim();
+            if (isEmpty(r.openingBalance)) r.openingBalance = mSummary.group(1).replace(",", "").trim();
             r.closingBalance = mSummary.group(2).replace(",", "").trim();
             System.out.println("DEBUG: SBI Summary Opening = " + r.openingBalance + ", Closing = " + r.closingBalance);
         } else {
             Matcher mClear = Pattern.compile("(?i)Clear\\s+Balance\\s*[:\\-]?\\s*([\\d,]+\\.\\d{2})(?:CR)?").matcher(text);
             if (mClear.find()) {
-                r.closingBalance = mClear.group(1).replace(",", "").trim();
-                r.openingBalance = r.closingBalance;
+                if (isEmpty(r.closingBalance)) r.closingBalance = mClear.group(1).replace(",", "").trim();
+                if (isEmpty(r.openingBalance)) r.openingBalance = r.closingBalance;
                 System.out.println("DEBUG: SBI Clear Balance = " + r.closingBalance);
             }
         }
@@ -858,12 +1045,20 @@ public class OcrProcessingService {
 
         // ----- Branch Name -----
         for (int i = 0; i < lines.length; i++) {
-            if (isEmpty(r.branch) && containsLabel(lines[i], "branch name")) {
-                String val = valueAfterLabel(lines[i], "branch name");
-                if (isEmpty(val)) val = nextNonEmptyNonLabel(lines, i);
-                if (!isEmpty(val)) {
-                    r.branch = val;
-                    System.out.println("DEBUG: Branch Name = " + r.branch);
+            if (isEmpty(r.branch)) {
+                if (containsLabel(lines[i], "branch name")) {
+                    String val = valueAfterLabel(lines[i], "branch name");
+                    if (isEmpty(val)) val = nextNonEmptyNonLabel(lines, i);
+                    if (!isEmpty(val)) {
+                        r.branch = val.replaceAll("^[:\\s]+", "").trim();
+                        System.out.println("DEBUG: Branch Name = " + r.branch);
+                    }
+                } else if (lines[i].toLowerCase().matches("^\\s*branch\\s*[:\\-].*")) {
+                    String val = valueAfterLabel(lines[i], "branch");
+                    if (!isEmpty(val)) {
+                        r.branch = val.replaceAll("^[:\\s]+", "").trim();
+                        System.out.println("DEBUG: Branch Name (Classic) = " + r.branch);
+                    }
                 }
             }
         }
@@ -874,20 +1069,26 @@ public class OcrProcessingService {
                 String val = valueAfterLabel(lines[i], "branch code");
                 if (isEmpty(val)) val = nextNonEmptyNonLabel(lines, i);
                 if (!isEmpty(val)) {
-                    r.branchCode = val.trim();
+                    r.branchCode = val.replaceAll("^[:\\s]+", "").trim();
                     System.out.println("DEBUG: Branch Code = " + r.branchCode);
                 }
             }
         }
 
         // ----- Branch Email (NEW) -----
-        for (int i = 0; i < lines.length; i++) {
-            if (isEmpty(r.branchEmail) && containsLabel(lines[i], "branch email")) {
-                String val = valueAfterLabel(lines[i], "branch email");
-                if (isEmpty(val)) val = nextNonEmptyNonLabel(lines, i);
-                if (!isEmpty(val)) {
-                    r.branchEmail = val.trim();
-                    System.out.println("DEBUG: Branch Email = " + r.branchEmail);
+        Matcher mBrEmail = Pattern.compile("(?i)Branch\\s+Email(?:\\s*ID)?\\s*[:\\-]?\\s*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})").matcher(text);
+        if (mBrEmail.find()) {
+            r.branchEmail = mBrEmail.group(1).trim();
+            System.out.println("DEBUG: Branch Email = " + r.branchEmail);
+        } else {
+            for (int i = 0; i < lines.length; i++) {
+                if (isEmpty(r.branchEmail) && containsLabel(lines[i], "branch email")) {
+                    String val = valueAfterLabel(lines[i], "branch email");
+                    if (isEmpty(val)) val = nextNonEmptyNonLabel(lines, i);
+                    if (!isEmpty(val) && val.contains("@")) {
+                        r.branchEmail = val.replaceAll("^[:\\s]+", "").trim();
+                        System.out.println("DEBUG: Branch Email = " + r.branchEmail);
+                    }
                 }
             }
         }
@@ -971,17 +1172,23 @@ public class OcrProcessingService {
         }
 
         // ----- Branch Phone -----
-        for (int i = 0; i < lines.length; i++) {
-            if (isEmpty(r.branchPhoneNo) && containsLabel(lines[i], "branch phone")) {
-                for (int j = i + 1; j < lines.length && j <= i + 5; j++) {
-                    String digits = lines[j].trim().replaceAll("[^0-9]", "");
-                    if (digits.length() >= 10) {
-                        r.branchPhoneNo = digits.substring(digits.length() - 10);
-                        System.out.println("DEBUG: Branch Phone = " + r.branchPhoneNo);
-                        break;
+        Matcher mBrPh = Pattern.compile("(?i)Branch\\s+Phone(?:\\s*No\\.?)?\\s*[:\\-]?\\s*(\\d{10})").matcher(text);
+        if (mBrPh.find()) {
+            r.branchPhoneNo = mBrPh.group(1).trim();
+            System.out.println("DEBUG: Branch Phone = " + r.branchPhoneNo);
+        } else {
+            for (int i = 0; i < lines.length; i++) {
+                if (isEmpty(r.branchPhoneNo) && containsLabel(lines[i], "branch phone")) {
+                    for (int j = i + 1; j < lines.length && j <= i + 5; j++) {
+                        String digits = lines[j].trim().replaceAll("[^0-9]", "");
+                        if (digits.length() >= 10) {
+                            r.branchPhoneNo = digits.substring(digits.length() - 10);
+                            System.out.println("DEBUG: Branch Phone = " + r.branchPhoneNo);
+                            break;
+                        }
                     }
+                    break;
                 }
-                break;
             }
         }
         if (isEmpty(r.branchPhoneNo) && !isEmpty(r.phoneNumber)) {
@@ -1043,39 +1250,20 @@ public class OcrProcessingService {
 
         // ----- Branch Address & Location -----
         if (isEmpty(r.branchAddress)) {
-            boolean capture = false;
-            boolean locationCaptured = false;
-            StringBuilder addrBuilder = new StringBuilder();
-
-            for (String line : lines) {
-                String t = line.trim();
-                if (t.equals("0.00") && !capture) {
-                    capture = true;
-                    continue;
-                }
-                if (capture) {
-                    if (t.toLowerCase().contains("branch code")) break;
-                    if (t.isEmpty() || t.matches("^[\\d]+(\\.[\\d]+)?$") || t.contains("%")) continue;
-                    if (t.matches(".*\\d{2}/\\d{2}/\\d{4}.*")) continue;
-
-                    if (!locationCaptured && !t.isEmpty()) {
-                        r.branchLocation = t;
-                        locationCaptured = true;
-                        System.out.println("DEBUG: Branch Location = " + r.branchLocation);
-                        continue;
-                    }
-
-                    if (addrBuilder.length() > 0) addrBuilder.append("\n");
-                    addrBuilder.append(t);
-                }
-            }
-
-            String addrStr = addrBuilder.toString().trim();
-            if (!addrStr.isEmpty()) {
-                r.branchAddress = addrStr;
-                System.out.println("DEBUG: Branch Address = " + r.branchAddress);
+            r.branchAddress = BranchAddressExtractor.extract(text, "SBI");
+        }
+        if (isEmpty(r.branchAddress) && !isEmpty(r.branch)) {
+            r.branchAddress = r.branch;
+        }
+        if (!isEmpty(r.branchAddress)) {
+            if (r.branchAddress.contains("Cheque") || r.branchAddress.contains("Debit") || r.branchAddress.contains("Balance") || r.branchAddress.contains("STATEMENT") || r.branchAddress.contains("Date No") || r.branchAddress.contains("Welcome:")) {
+                r.branchAddress = r.branch != null ? r.branch : "";
             }
         }
+        if (isEmpty(r.branchLocation) && !isEmpty(r.branch)) {
+            r.branchLocation = r.branch.contains("-") ? r.branch.split("-", 2)[1].trim() : r.branch;
+        }
+        System.out.println("DEBUG: Branch Address = " + r.branchAddress);
     }
 
     // ==================== HELPER METHODS (unchanged) ====================
@@ -1138,7 +1326,17 @@ public class OcrProcessingService {
         return rest.isEmpty() ? null : rest;
     }
     private static String extractAnyMobile(String text, String accountNumber, String cif) {
-        Matcher m = Pattern.compile("\\b[6-9]\\d{9}\\b").matcher(text);
+        if (text == null) return null;
+        String headerSection = text;
+        String[] cuts = {"Account Statement from", "Txn Date", "Transaction Date", "Savings Account Transactions", "Tran Date"};
+        for (String cut : cuts) {
+            int idx = headerSection.indexOf(cut);
+            if (idx != -1) {
+                headerSection = headerSection.substring(0, idx);
+                break;
+            }
+        }
+        Matcher m = Pattern.compile("\\b[6-9]\\d{9}\\b").matcher(headerSection);
         while (m.find()) {
             String candidate = m.group();
             if (!candidate.equals(accountNumber) && !candidate.equals(cif)) return candidate;
@@ -1312,11 +1510,16 @@ public class OcrProcessingService {
         }
 
         // 7. Branch Name
-        Matcher brMatcher = Pattern.compile("(?i)Bank\\s+Of\\s+India\\s+([A-Za-z0-9\\s\\-]+?)(?=\\r|\\n|M/S|SHOP|CUSTID|$)").matcher(text);
-        if (brMatcher.find()) {
-            String br = brMatcher.group(1).replaceAll("(?i)^Bank\\s+Of\\s+India\\s*", "").trim();
-            if (!br.equalsIgnoreCase("Bank Of India") && !br.isEmpty() && !br.equalsIgnoreCase("Date")) {
-                r.branch = br;
+        Matcher mBrDirect = Pattern.compile("(?i)Branch\\s+Name\\s*[:\\-]?\\s*([^:\\r\\n]+?)(?=\\s*(?:Transaction|Date|\\r|\\n|$))").matcher(text);
+        if (mBrDirect.find()) {
+            r.branch = mBrDirect.group(1).trim();
+        } else {
+            Matcher brMatcher = Pattern.compile("(?i)Bank\\s+Of\\s+India\\s+([A-Za-z0-9\\s\\-]+?)(?=\\r|\\n|M/S|SHOP|CUSTID|$)").matcher(text);
+            if (brMatcher.find()) {
+                String br = brMatcher.group(1).replaceAll("(?i)^Bank\\s+Of\\s+India\\s*", "").trim();
+                if (!br.equalsIgnoreCase("Bank Of India") && !br.isEmpty() && !br.equalsIgnoreCase("Date")) {
+                    r.branch = br;
+                }
             }
         }
         if (r.branch == null || r.branch.isBlank() || r.branch.equalsIgnoreCase("Date")) {
@@ -1344,14 +1547,32 @@ public class OcrProcessingService {
         }
 
         // 9. Statement Period
-        Matcher periodMatcher = Pattern.compile("(?i)(?:FROM|From)?\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})\\s+(?:TO|To)\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})").matcher(text);
-        if (periodMatcher.find()) {
-            r.statementPeriodStart = periodMatcher.group(1).trim();
-            r.statementPeriodEnd = periodMatcher.group(2).trim();
-            System.out.println("DEBUG: BOI Period = " + r.statementPeriodStart + " to " + r.statementPeriodEnd);
+        Matcher mTxPeriod = Pattern.compile("(?i)Transaction\\s+Date\\s+from\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})\\s+to\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})").matcher(text);
+        if (mTxPeriod.find()) {
+            r.statementPeriodStart = normalizeDateString(mTxPeriod.group(1).trim());
+            r.statementPeriodEnd = normalizeDateString(mTxPeriod.group(2).trim());
+            System.out.println("DEBUG: BOI Period (Transaction Date) = " + r.statementPeriodStart + " to " + r.statementPeriodEnd);
+        } else {
+            Matcher periodMatcher = Pattern.compile("(?i)(?:FROM|From)?\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})\\s+(?:TO|To)\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})").matcher(text);
+            if (periodMatcher.find()) {
+                r.statementPeriodStart = normalizeDateString(periodMatcher.group(1).trim());
+                r.statementPeriodEnd = normalizeDateString(periodMatcher.group(2).trim());
+                System.out.println("DEBUG: BOI Period = " + r.statementPeriodStart + " to " + r.statementPeriodEnd);
+            }
         }
 
         // 10. Customer / Entity Name & Address
+        Matcher mAccHolder = Pattern.compile("(?i)Account\\s+holder\\s+name\\s*[:\\-]?\\s*([^:\\r\\n]+?)(?=\\s*Account\\s+holder\\s+address|\\r|\\n|$)", Pattern.CASE_INSENSITIVE).matcher(text);
+        if (mAccHolder.find()) {
+            r.name = mAccHolder.group(1).trim();
+        }
+
+        Matcher mAccAddr = Pattern.compile("(?is)account\\s+holder\\s+address\\s*[:\\-]?\\s*(.*?)(?=\\s*(?:Customer|IFSC|Account\\s+number|Branch|Transaction|\\r|\\n\\s*\\n))").matcher(text);
+        if (mAccAddr.find()) {
+            r.address = mAccAddr.group(1).replaceAll("[ \t]+", " ").replaceAll("\\n\\s+", "\n").trim();
+            r.pincode = AddressUtils.extractPincode(r.address);
+        }
+
         // Helper to strip right column tags from a line
         java.util.function.Function<String, String> cleanBoiLeft = l -> {
             if (l == null) return "";
@@ -1360,11 +1581,13 @@ public class OcrProcessingService {
         };
 
         // Strategy: find M/S line or entity header
-        for (String line : lines) {
-            String cleaned = cleanBoiLeft.apply(line);
-            if (cleaned.toUpperCase().startsWith("M/S") || cleaned.toUpperCase().startsWith("MS ")) {
-                r.name = cleaned;
-                break;
+        if (r.name == null || r.name.isBlank()) {
+            for (String line : lines) {
+                String cleaned = cleanBoiLeft.apply(line);
+                if (cleaned.toUpperCase().startsWith("M/S") || cleaned.toUpperCase().startsWith("MS ")) {
+                    r.name = cleaned;
+                    break;
+                }
             }
         }
 
@@ -1570,5 +1793,165 @@ public class OcrProcessingService {
         else if (addrUpper.contains("INDORE")) r.city = "INDORE";
 
         r.country = "INDIA";
+    }
+
+    // ==================== UNIVERSAL TRANSACTION FALLBACKS ====================
+    private static void extractUniversalBalancesAndPeriods(OcrResult r, String text) {
+        if (text == null) return;
+
+        // 1. Periods if missing
+        if (isEmpty(r.statementPeriodStart) || isEmpty(r.statementPeriodEnd)) {
+            Matcher mPeriod = Pattern.compile(
+                    "(?i)(?:Statement\\s+Period|Statement\\s+From|Period|From)\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{4})\\s*(?:to|-|TO)\\s*[:\\-]?\\s*(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{4})"
+            ).matcher(text);
+            if (mPeriod.find()) {
+                if (isEmpty(r.statementPeriodStart)) r.statementPeriodStart = normalizeDateString(mPeriod.group(1));
+                if (isEmpty(r.statementPeriodEnd)) r.statementPeriodEnd = normalizeDateString(mPeriod.group(2));
+            }
+        }
+
+        // 2. Explicit opening balance labels
+        if (isEmpty(r.openingBalance)) {
+            Matcher mOpen = Pattern.compile(
+                    "(?i)(?:OPENING\\s+BALANCE|Brought\\s+Forward|Balance\\s+B/F|Bal\\s+as\\s+on[^:\\n]*?|Clear\\s+Balance)\\s*[:\\-]?\\s*([0-9,]+\\.\\d{2})(?:\\s*(?:CR|DR|Cr|Dr))?"
+            ).matcher(text);
+            if (mOpen.find()) {
+                r.openingBalance = mOpen.group(1).replace(",", "").trim();
+            }
+        }
+
+        // 3. Explicit closing balance labels
+        if (isEmpty(r.closingBalance)) {
+            Matcher mClose = Pattern.compile(
+                    "(?i)(?:CLOSING\\s+BALANCE|Closing\\s+Bal|Carried\\s+Forward|Balance\\s+C/F)\\s*[:\\-]?\\s*([0-9,]+\\.\\d{2})(?:\\s*(?:CR|DR|Cr|Dr))?"
+            ).matcher(text);
+            if (mClose.find()) {
+                r.closingBalance = mClose.group(1).replace(",", "").trim();
+            }
+        }
+
+        // 4. Transaction-row scan for balances & period dates
+        Pattern txLinePattern = Pattern.compile(
+                "(?im)^\\s*(?:\\d+\\s+)?(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{2,4})\\b.*?(?:([0-9,]+\\.\\d{2})\\s*(?:\\(?(?:Dr|Cr|DR|CR)\\)?)?\\s+)?(?:([0-9,]+\\.\\d{2})\\s*(?:\\(?(?:Dr|Cr|DR|CR)\\)?)?\\s+)?([0-9,]+\\.\\d{2})(?:\\s*\\(?(?:Dr|Cr|DR|CR)\\)?)?\\s*$"
+        );
+        Matcher mTx = txLinePattern.matcher(text);
+
+        String firstTxDate = null;
+        String lastTxDate = null;
+        String firstBal = null;
+        String firstAmt1 = null;
+        String firstAmt2 = null;
+        String lastBal = null;
+
+        while (mTx.find()) {
+            String date = mTx.group(1);
+            String a1 = mTx.group(2);
+            String a2 = mTx.group(3);
+            String bal = mTx.group(4);
+
+            if (firstTxDate == null) {
+                firstTxDate = date;
+                firstAmt1 = a1;
+                firstAmt2 = a2;
+                firstBal = bal;
+            }
+            lastTxDate = date;
+            lastBal = bal;
+        }
+
+        if (isEmpty(r.closingBalance) && lastBal != null) {
+            r.closingBalance = lastBal.replace(",", "").trim();
+            System.out.println("DEBUG: Universal fallback Closing Balance = " + r.closingBalance);
+        }
+
+        if (isEmpty(r.openingBalance) && firstBal != null) {
+            try {
+                double bVal = Double.parseDouble(firstBal.replace(",", ""));
+                if (firstAmt1 != null && firstAmt2 != null) {
+                    double d1 = Double.parseDouble(firstAmt1.replace(",", ""));
+                    double d2 = Double.parseDouble(firstAmt2.replace(",", ""));
+                    r.openingBalance = String.format(Locale.US, "%.2f", Math.max(0.0, bVal + d1 - d2));
+                } else if (firstAmt1 != null) {
+                    double amt = Double.parseDouble(firstAmt1.replace(",", ""));
+                    double cand1 = bVal + amt;
+                    double cand2 = bVal - amt;
+                    r.openingBalance = String.format(Locale.US, "%.2f", cand2 >= 0 ? cand2 : cand1);
+                } else {
+                    r.openingBalance = String.format(Locale.US, "%.2f", bVal);
+                }
+                System.out.println("DEBUG: Universal fallback Opening Balance = " + r.openingBalance);
+            } catch (Exception ignored) {}
+        }
+
+        if (isEmpty(r.statementPeriodStart) && firstTxDate != null) {
+            r.statementPeriodStart = normalizeDateString(firstTxDate);
+            System.out.println("DEBUG: Universal fallback Period Start = " + r.statementPeriodStart);
+        }
+        if (isEmpty(r.statementPeriodEnd) && lastTxDate != null) {
+            r.statementPeriodEnd = normalizeDateString(lastTxDate);
+            System.out.println("DEBUG: Universal fallback Period End = " + r.statementPeriodEnd);
+        }
+    }
+
+    private static String normalizeDateString(String raw) {
+        if (raw == null) return null;
+        raw = raw.trim();
+        Matcher m = Pattern.compile("(\\d{1,2})\\s+([A-Za-z]{3})\\s+(\\d{2,4})").matcher(raw);
+        if (m.find()) {
+            String day = String.format("%02d", Integer.parseInt(m.group(1)));
+            String monthName = m.group(2).toLowerCase();
+            String year = m.group(3);
+            if (year.length() == 2) year = (Integer.parseInt(year) > 70 ? "19" : "20") + year;
+            String month;
+            switch (monthName) {
+                case "jan": month = "01"; break;
+                case "feb": month = "02"; break;
+                case "mar": month = "03"; break;
+                case "apr": month = "04"; break;
+                case "may": month = "05"; break;
+                case "jun": month = "06"; break;
+                case "jul": month = "07"; break;
+                case "aug": month = "08"; break;
+                case "sep": month = "09"; break;
+                case "oct": month = "10"; break;
+                case "nov": month = "11"; break;
+                case "dec": month = "12"; break;
+                default: month = "01"; break;
+            }
+            return day + "-" + month + "-" + year;
+        }
+        Matcher m2 = Pattern.compile("(\\d{1,2})[/-](\\d{1,2})[/-](\\d{2,4})").matcher(raw);
+        if (m2.find()) {
+            String day = String.format("%02d", Integer.parseInt(m2.group(1)));
+            String month = String.format("%02d", Integer.parseInt(m2.group(2)));
+            String year = m2.group(3);
+            if (year.length() == 2) year = (Integer.parseInt(year) > 70 ? "19" : "20") + year;
+            return day + "-" + month + "-" + year;
+        }
+        return raw;
+    }
+
+    private static String extractCityFromAddress(String addr) {
+        if (addr == null) return null;
+        String u = addr.toUpperCase();
+        String[] cities = {"BHOPAL", "INDORE", "MUMBAI", "SURAT", "AHMEDABAD", "VADODARA", "JAIPUR", "DEWAS", "DELHI", "PUNE", "NAGPUR", "KOLKATA", "CHENNAI", "BANGALORE", "HYDERABAD", "LUCKNOW", "GWALIOR", "JABALPUR", "UJJAIN", "RAIPUR", "MAHWA", "DAUSA"};
+        for (String c : cities) {
+            if (u.contains(c)) return c;
+        }
+        return null;
+    }
+
+    private static String extractStateFromAddress(String addr) {
+        if (addr == null) return null;
+        String u = addr.toUpperCase();
+        if (u.contains("MADHYA PRADESH") || u.contains("M.P.")) return "MADHYA PRADESH";
+        if (u.contains("MAHARASHTRA")) return "MAHARASHTRA";
+        if (u.contains("GUJARAT")) return "GUJARAT";
+        if (u.contains("RAJASTHAN")) return "RAJASTHAN";
+        if (u.contains("UTTAR PRADESH") || u.contains("U.P.")) return "UTTAR PRADESH";
+        if (u.contains("KARNATAKA")) return "KARNATAKA";
+        if (u.contains("TAMIL NADU")) return "TAMIL NADU";
+        if (u.contains("DELHI")) return "DELHI";
+        return null;
     }
 }

@@ -128,9 +128,7 @@ public class SbiNewTemplate implements BankPdfTemplate {
         final int[] pageNo = {1};
 
         try (PDDocument doc = new PDDocument()) {
-            if (stmt.meta.password == null) {
-                throw new Error("No Password Provided");
-            }
+            // If password protection is requested, it will be applied before saving
 
             PDDocumentInformation info = new PDDocumentInformation();
             info.setProducer("OpenPDF 1.3.32");
@@ -140,8 +138,7 @@ public class SbiNewTemplate implements BankPdfTemplate {
             doc.setDocumentInformation(info);
             doc.setVersion(1.5f);
 
-            COSDictionary catalogDict = doc.getDocumentCatalog().getCOSObject();
-            catalogDict.setName("Trapped", "False");
+
 
             PDDocument original = PDDocument.load(new File("sbinew.pdf"));
             extractImagesFromPage(original, 2, extractedImages);
@@ -259,25 +256,41 @@ public class SbiNewTemplate implements BankPdfTemplate {
             drawPageNo(pageNo);
             cs.close();
 
-            doc.getDocumentCatalog().setViewerPreferences(null);
+            // Configure Catalog to match JasperReports / OpenPDF output
+            COSDictionary catalogDict = doc.getDocumentCatalog().getCOSObject();
+            catalogDict.removeItem(COSName.VERSION);
+            catalogDict.removeItem(COSName.getPDFName("Trapped"));
+            COSDictionary vp = new COSDictionary();
+            vp.setName(COSName.getPDFName("PrintScaling"), "AppDefault");
+            catalogDict.setItem(COSName.VIEWER_PREFERENCES, vp);
 
-            // Encryption
+            // Encryption: Enforce strict 40-bit RC4 (Revision 2, Algorithm 1) with P = -64 matching original SBI JasperReports output
             doc.getDocument().setVersion(1.5f);
+            String userPassword = (stmt.meta != null && stmt.meta.password != null && !stmt.meta.password.trim().isEmpty())
+                    ? stmt.meta.password.trim()
+                    : (stmt.details != null && stmt.details.accountNumber != null && !stmt.details.accountNumber.trim().isEmpty())
+                            ? stmt.details.accountNumber.trim()
+                            : (stmt.details != null && stmt.details.customerRelNo != null && !stmt.details.customerRelNo.trim().isEmpty())
+                                    ? stmt.details.customerRelNo.trim()
+                                    : "1234";
+
             AccessPermission ap = new AccessPermission();
             ap.setCanPrint(true);
             ap.setCanExtractContent(true);
             ap.setCanModifyAnnotations(true);
-            ap.setCanFillInForm(true);
-            ap.setCanAssembleDocument(true);
-            ap.setCanPrintDegraded(true);
             ap.setCanModify(false);
-            String ownerPassword = java.util.UUID.randomUUID().toString();
+            ap.setCanFillInForm(false);
+            ap.setCanExtractForAccessibility(false);
+            ap.setCanAssembleDocument(false);
+            ap.setCanPrintFaithful(false);
+            // In JasperReports / SBI statements, owner password equals user password so <owner, user> is authenticated
             StandardProtectionPolicy policy = new StandardProtectionPolicy(
-                    ownerPassword, stmt.meta.password, ap);
-            policy.setEncryptionKeyLength(128);
-            policy.setPreferAES(true);
+                    userPassword, userPassword, ap);
+            policy.setEncryptionKeyLength(40);
+            policy.setPreferAES(false);
             doc.protect(policy);
-            doc.getDocumentCatalog().getCOSObject().setName(COSName.VERSION, "1.5");
+            // In standard V=1 / R=2 RC4 encryption, EncryptMetadata is not present in original PDF
+            doc.getEncryption().getCOSObject().removeItem(COSName.getPDFName("EncryptMetadata"));
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             doc.save(out);
@@ -367,7 +380,13 @@ public class SbiNewTemplate implements BankPdfTemplate {
 
         drawCell(X_REF_COL, rowTopY, W_REF_COL, rowHeight, true);
         String refText = (ref != null && !ref.isBlank()) ? ref.trim() : "-";
-        drawText(centerAlignedX(refText, X_REF_COL, W_REF_COL, 8f), rowTopY - 17f, refText);
+        float refFontSize = 8f;
+        float refWidth = safeStringWidth(font, refText, refFontSize);
+        if (refWidth > W_REF_COL - 4f) {
+            refFontSize = Math.max(5.5f, 8f * ((W_REF_COL - 4f) / refWidth));
+        }
+        float refX = centerAlignedX(refText, X_REF_COL, W_REF_COL, refFontSize);
+        drawText(refX, rowTopY - 17f, refText, refFontSize);
 
         drawCell(X_DEBIT_COL, rowTopY, W_DEBIT_COL, rowHeight, true);
         String debitText = (debit == null || debit.isBlank()) ? "-" : debit;
@@ -476,9 +495,11 @@ public class SbiNewTemplate implements BankPdfTemplate {
             hardLine = hardLine.trim().replaceAll("[ \\t]+", " ");
             List<String> wrapped;
             try {
-                wrapped = wrapTextToWidth(hardLine, font, 8f, 150f);
-            } catch (IOException e) {
-                wrapped = List.of(hardLine.split(" "));
+                // Table details cell width is 150f (from x=130f to 280f), text starts at x=138f.
+                // Available width is 142f. We use 138f max width to ensure a clean 4pt padding from the column line.
+                wrapped = wrapTextToWidth(hardLine, font, 8f, 118f);
+            } catch (Exception e) {
+                wrapped = List.of(hardLine);
             }
             for (String line : wrapped) {
                 if (lines.size() >= MAX_NARRATION_LINES) break;
@@ -491,21 +512,58 @@ public class SbiNewTemplate implements BankPdfTemplate {
 
     private static List<String> wrapTextToWidth(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
         List<String> result = new ArrayList<>();
-        String[] words = text.split("\\s+");
-        StringBuilder currentLine = new StringBuilder();
-        for (String word : words) {
-            String testLine = currentLine.length() == 0 ? word : currentLine + " " + word;
-            float width = (font.getStringWidth(testLine) / 1000f) * fontSize;
-            if (width > maxWidth && currentLine.length() > 0) {
-                result.add(currentLine.toString());
-                currentLine.setLength(0);
-                currentLine.append(word);
-            } else {
-                currentLine.setLength(0);
-                currentLine.append(testLine);
+        if (text == null || text.isBlank()) return result;
+
+        // Split text into tokens by spaces and delimiters like '/', '-', '@', ':', '*'
+        // Keeping delimiters attached to the preceding token (e.g. "UPI/", "DR/")
+        List<String> tokens = new ArrayList<>();
+        StringBuilder currentToken = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            currentToken.append(c);
+            if (c == ' ' || c == '/' || c == '-' || c == '@' || c == ':' || c == '*' || c == '.' || c == ',' || c == '_') {
+                tokens.add(currentToken.toString());
+                currentToken.setLength(0);
             }
         }
-        if (currentLine.length() > 0) result.add(currentLine.toString());
+        if (currentToken.length() > 0) {
+            tokens.add(currentToken.toString());
+        }
+
+        StringBuilder currentLine = new StringBuilder();
+        for (String tok : tokens) {
+            String candidate = currentLine.length() == 0 ? tok : currentLine.toString() + tok;
+            float candidateWidth = safeStringWidth(font, candidate.trim(), fontSize);
+
+            if (candidateWidth <= maxWidth) {
+                currentLine.append(tok);
+            } else {
+                if (currentLine.length() > 0) {
+                    result.add(currentLine.toString().trim());
+                    currentLine.setLength(0);
+                }
+
+                float tokWidth = safeStringWidth(font, tok.trim(), fontSize);
+                if (tokWidth <= maxWidth) {
+                    currentLine.append(tok);
+                } else {
+                    // Token is wider than maxWidth on its own; break character by character
+                    for (int ci = 0; ci < tok.length(); ci++) {
+                        char ch = tok.charAt(ci);
+                        String testChunk = currentLine.toString() + ch;
+                        float chunkWidth = safeStringWidth(font, testChunk.trim(), fontSize);
+                        if (chunkWidth > maxWidth && currentLine.length() > 0) {
+                            result.add(currentLine.toString().trim());
+                            currentLine.setLength(0);
+                        }
+                        currentLine.append(ch);
+                    }
+                }
+            }
+        }
+        if (currentLine.length() > 0 && !currentLine.toString().trim().isEmpty()) {
+            result.add(currentLine.toString().trim());
+        }
         return result;
     }
 
@@ -530,9 +588,13 @@ public class SbiNewTemplate implements BankPdfTemplate {
     }
 
     private void drawText(float x, float y, String text) throws IOException {
+        drawText(x, y, text, 8f);
+    }
+
+    private void drawText(float x, float y, String text, float fontSize) throws IOException {
         cs.appendRawCommands(String.format(Locale.ROOT,
-                "BT\n1 0 0 1 %.2f %.2f Tm\n/F1 8 Tf\n0 0 0 rg\n(%s)Tj\nET\n",
-                x, y, pdfEscapeLiteral(text)));
+                "BT\n1 0 0 1 %.2f %.2f Tm\n/F1 %.2f Tf\n0 0 0 rg\n(%s)Tj\nET\n",
+                x, y, fontSize, pdfEscapeLiteral(text)));
     }
 
     private void drawTableHeader(PageCursor pc, boolean firstPage) throws IOException {
@@ -599,12 +661,12 @@ public class SbiNewTemplate implements BankPdfTemplate {
     }
 
     private static float AlignXtoRight(String text, PDType1Font font, float rightEdge, float fontSize) throws IOException {
-        float textWidth = (font.getStringWidth(text) / 1000f) * fontSize;
+        float textWidth = safeStringWidth(font, text, fontSize);
         return rightEdge - textWidth;
     }
 
     private float centerAlignedX(String text, float colX, float colWidth, float fontSize) throws IOException {
-        float textWidth = (font.getStringWidth(text) / 1000f) * fontSize;
+        float textWidth = safeStringWidth(font, text, fontSize);
         return colX + (colWidth - textWidth) / 2f;
     }
 
@@ -770,6 +832,14 @@ public class SbiNewTemplate implements BankPdfTemplate {
             if (xobj instanceof PDImageXObject img) {
                 out.putIfAbsent(name.getName(), img.getImage());
             }
+        }
+    }
+    private static float safeStringWidth(PDFont font, String text, float fontSize) {
+        if (text == null || text.isEmpty()) return 0f;
+        try {
+            return (font.getStringWidth(text) / 1000f) * fontSize;
+        } catch (Exception e) {
+            return text.length() * fontSize * 0.55f;
         }
     }
 }

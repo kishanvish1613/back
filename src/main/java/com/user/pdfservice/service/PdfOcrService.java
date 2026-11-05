@@ -60,22 +60,24 @@ public class PdfOcrService {
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
 
-            // Extract pages 1 and 2 (Header & Details)
-            stripper.setStartPage(1);
-            stripper.setEndPage(Math.min(2, totalPages));
-            String headerText = stripper.getText(document);
+            String directText;
+            if (totalPages <= 5) {
+                stripper.setStartPage(1);
+                stripper.setEndPage(totalPages);
+                directText = stripper.getText(document);
+            } else {
+                stripper.setStartPage(1);
+                stripper.setEndPage(3);
+                String headerText = stripper.getText(document);
 
-            // Also extract the final page if multi-page (for closing summary balances)
-            String lastPageText = "";
-            if (totalPages > 2) {
                 PDFTextStripper lastStripper = new PDFTextStripper();
                 lastStripper.setSortByPosition(true);
-                lastStripper.setStartPage(totalPages);
+                lastStripper.setStartPage(Math.max(4, totalPages - 1));
                 lastStripper.setEndPage(totalPages);
-                lastPageText = lastStripper.getText(document);
-            }
+                String lastPageText = lastStripper.getText(document);
 
-            String directText = headerText + "\n--- LAST PAGE ---\n" + lastPageText;
+                directText = headerText + "\n--- LAST PAGE ---\n" + lastPageText;
+            }
             if (directText != null && directText.trim().length() > 50) {
                 return directText;
             }

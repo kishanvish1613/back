@@ -1,46 +1,44 @@
 package com.user.pdfservice.template.kotaknew;
 
+import com.lowagie.text.pdf.BaseFont;
 import java.io.InputStream;
-
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
 
 /**
  * Central font holder for Kotak PDFs.
- * Keeps font logic out of templates.
+ * Loads SourceSans3 and Helvetica for native OpenPDF generation.
  */
 public class Fonts {
 
-    public final PDType0Font regular;
-    public final PDType0Font semiBold;
+    public final BaseFont regular;
+    public final BaseFont semiBold;
+    public final BaseFont helvetica;
 
-    public final PDType1Font helvetica;
-
-    private Fonts(PDType0Font regular, PDType0Font semiBold) {
-        this.semiBold = semiBold;
+    private Fonts(BaseFont regular, BaseFont semiBold, BaseFont helvetica) {
         this.regular = regular;
-        this.helvetica = PDType1Font.HELVETICA;
+        this.semiBold = semiBold;
+        this.helvetica = helvetica;
     }
 
-    public static Fonts load(PDDocument doc) {
-        return new Fonts(
-                loadFont(doc, "/fonts/SourceSans3-Regular.ttf"),
-                loadFont(doc, "/fonts/SourceSans3-SemiBold.ttf"));
-    }
-
-    private static PDType0Font loadFont(PDDocument doc, String path) {
-        try (InputStream is = Fonts.class.getResourceAsStream(path)) {
-
-            if (is == null) {
-                throw new IllegalStateException("Font not found: " + path);
-            }
-
-            // true = subset → CID TrueType → Identity-H
-            return PDType0Font.load(doc, is, true);
-
+    public static Fonts load() {
+        try {
+            BaseFont regular = loadFont("/fonts/SourceSans3-Regular.ttf", "SourceSans3-Regular.ttf");
+            BaseFont semiBold = loadFont("/fonts/SourceSans3-SemiBold.ttf", "SourceSans3-SemiBold.ttf");
+            BaseFont helvetica = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
+            return new Fonts(regular, semiBold, helvetica);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load font: " + path, e);
+            throw new RuntimeException("Failed to load fonts", e);
+        }
+    }
+
+    private static BaseFont loadFont(String resourcePath, String name) {
+        try (InputStream is = Fonts.class.getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                throw new IllegalStateException("Font resource not found: " + resourcePath);
+            }
+            byte[] bytes = is.readAllBytes();
+            return BaseFont.createFont(name, BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, bytes, null);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load font " + resourcePath, e);
         }
     }
 }
